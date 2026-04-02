@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Personal blueprints — keep out of git
+*_personal.json
+my_blueprint.json
+blueprint.json
+
+# Streamlit secrets (for cloud deployments)
+.streamlit/secrets.toml
+
+# Claude Code
+.claude/
