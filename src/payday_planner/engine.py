@@ -84,6 +84,81 @@ def _compute_summary(accounts: List[Account], events: List[Event], goals: List[G
     }
 
 
+def blueprint_to_ai_context(ss) -> str:
+    """
+    Produce a clean, token-efficient snapshot for pasting into AI chat.
+    Strips UI noise (colors, empty fields, UUIDs), resolves account IDs to
+    names, and puts the summary first so the AI has immediate orientation.
+    """
+    today = date.today().isoformat()
+    acct_name = {a.id: a.name for a in ss.accounts}
+
+    # ── Members ───────────────────────────────────────────────────────────────
+    members = [{"id": m.id, "name": m.name} for m in ss.members]
+
+    # ── Accounts ──────────────────────────────────────────────────────────────
+    accounts = []
+    for a in ss.accounts:
+        entry: dict = {"name": a.name, "type": a.type, "owner": a.owner, "balance": round(a.balance, 2)}
+        if a.interest_rate:
+            entry["interest_rate"] = a.interest_rate
+        if a.market_value:
+            entry["market_value"] = a.market_value
+            entry["equity"] = round(a.market_value - a.balance, 2)
+        if a.notes:
+            entry["notes"] = a.notes
+        accounts.append(entry)
+
+    # ── Events ────────────────────────────────────────────────────────────────
+    events = []
+    for e in ss.events:
+        if not e.active:
+            continue
+        entry = {
+            "name":      e.name,
+            "type":      e.event_type,
+            "amount":    e.amount,
+            "frequency": e.frequency,
+            "anchor":    e.anchor_date,
+        }
+        if e.end_date:
+            entry["ends"] = e.end_date
+        if e.from_account_id:
+            entry["from"] = acct_name.get(e.from_account_id, e.from_account_id)
+        if e.to_account_id:
+            entry["to"] = acct_name.get(e.to_account_id, e.to_account_id)
+        if e.owner:
+            entry["owner"] = e.owner
+        if e.notes:
+            entry["notes"] = e.notes
+        events.append(entry)
+
+    # ── Goals ─────────────────────────────────────────────────────────────────
+    goals = []
+    for g in ss.goals:
+        entry = {
+            "name":    g.name,
+            "account": acct_name.get(g.account_id, g.account_id),
+            "target":  g.target_balance,
+            "by":      g.target_date,
+        }
+        if g.notes:
+            entry["notes"] = g.notes
+        goals.append(entry)
+
+    summary = _compute_summary(ss.accounts, ss.events, ss.goals)
+
+    doc = {
+        "as_of":    today,
+        "members":  members,
+        "summary":  summary,
+        "accounts": accounts,
+        "events":   events,
+        "goals":    goals,
+    }
+    return json.dumps(doc, indent=2)
+
+
 def blueprint_to_json(ss) -> str:
     return json.dumps({
         "members":  [asdict(m) for m in ss.members],

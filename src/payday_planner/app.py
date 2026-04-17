@@ -12,7 +12,7 @@ import pandas as pd
 
 from payday_planner.models import Member, Account, Event
 from payday_planner.engine import (
-    blueprint_to_json, json_to_blueprint,
+    blueprint_to_json, blueprint_to_ai_context, json_to_blueprint,
     _default_accounts, _default_events, _default_rules, _default_goals,
     build_calendar,
     _monthly_rate, guilt_free_buffers,
@@ -625,6 +625,13 @@ def page_oracle():
 
 def page_export():
     st.header("Export & Import")
+
+    st.subheader("AI Context")
+    st.caption("Paste this into Claude, Gemini, or any AI chat to discuss your finances. Noise stripped, account IDs resolved, summary first.")
+    ai_context = blueprint_to_ai_context(st.session_state)
+    st.text_area("AI-ready snapshot", value=ai_context, height=300)
+
+    st.divider()
 
     st.subheader("JSON Blueprint")
     st.caption("Complete export — import this file to restore everything exactly.")
