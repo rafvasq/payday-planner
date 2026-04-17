@@ -42,13 +42,7 @@ The app opens at `http://localhost:8501`. On first launch it loads a demo setup 
 
 ## Your Data
 
-Your financial blueprint is stored locally at:
-
-- **macOS:** `~/Library/Application Support/payday/blueprint.json`
-- **Linux:** `~/.local/share/payday/blueprint.json`
-- **Windows:** `%APPDATA%\payday\blueprint.json`
-
-It auto-saves on every page render and auto-loads on startup. To point at a different file:
+Your financial blueprint is stored in `payday/blueprint.json`. It auto-saves on every page render and auto-loads on startup. To point at a different file:
 
 ```bash
 PAYDAY_BLUEPRINT=~/Documents/finances.json payday
@@ -130,8 +124,8 @@ When the Oracle suggests a blueprint change, a preview banner appears at the top
 ## Development
 
 ```bash
-git clone https://github.com/your-username/payday
-cd payday
+git clone https://github.com/rafvasq/payday-planner
+cd payday-planner
 uv sync
 uv tool install .
 ```
@@ -145,7 +139,7 @@ uv run pytest tests/ -v
 ### Project Structure
 
 ```
-src/payday/
+src/payday_planner/
   app.py       # Streamlit UI
   engine.py    # Calendar, projection, serialization, guilt-free buffer logic
   models.py    # Data models (Member, Account, Event, AllocationRule, Goal)
