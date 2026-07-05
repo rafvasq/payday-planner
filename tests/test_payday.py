@@ -2,7 +2,7 @@
 Tests for payday.py pure logic:
   - _advance_month / _advance_quarter
   - get_occurrences (all frequencies, end_date capping, inactive events, boundaries)
-  - build_calendar (sorting by date+tier, empty input)
+  - build_calendar (sorting by date, empty input)
   - blueprint_to_json / json_to_blueprint (round-trip, partial data, invalid JSON)
   - _build_mermaid (structure, edges, inactive exclusion, ID sanitization)
   - default data integrity (account refs in events exist)
@@ -16,11 +16,7 @@ st_stub.set_page_config = lambda **kw: None
 st_stub.session_state   = {}
 sys.modules["streamlit"] = st_stub
 
-# Stub ollama — it's optional and may not be installed in CI
-if "ollama" not in sys.modules:
-    sys.modules["ollama"] = types.ModuleType("ollama")
-
-from payday_planner.models import Event, Account, Member, AllocationRule, Goal
+from payday_planner.models import Event, Account, Member, Goal
 from payday_planner.engine import (
     _advance_month,
     _advance_quarter,
@@ -33,7 +29,7 @@ from payday_planner.engine import (
     _default_accounts,
     _default_events,
 )
-from payday_planner.app import extract_blueprint_json, _build_mermaid
+from payday_planner.app import _build_mermaid
 
 import json
 from datetime import date
@@ -48,7 +44,6 @@ def make_event(frequency, anchor, **kwargs):
         name="Test",
         event_type="inflow",
         amount=100,
-        amount_type="fixed",
         from_account_id=None,
         to_account_id="chq_a",
         frequency=frequency,
@@ -178,23 +173,23 @@ def test_inactive_event_returns_empty():
 
 # ─── build_calendar ──────────────────────────────────────────────────────────
 
-def test_build_calendar_sorted_by_date_then_tier():
-    e1 = make_event("monthly", "2026-01-01", id="e1", tier=3)
-    e2 = make_event("monthly", "2026-01-01", id="e2", tier=1)
-    e3 = make_event("monthly", "2026-02-01", id="e3", tier=1)
+def test_build_calendar_sorted_by_date_preserving_insertion_order():
+    e1 = make_event("monthly", "2026-01-01", id="e1")
+    e2 = make_event("monthly", "2026-01-01", id="e2")
+    e3 = make_event("monthly", "2026-02-01", id="e3")
 
     rows = build_calendar([e1, e2, e3], date(2026, 1, 1), date(2026, 2, 28))
-    # Jan 1 events should be sorted by tier (e2 before e1)
+    # Jan 1 events should retain insertion order (stable sort, same-day ties)
     jan_rows = [r for r in rows if r["date"] == date(2026, 1, 1)]
-    assert jan_rows[0]["id"] == "e2"
-    assert jan_rows[1]["id"] == "e1"
+    assert jan_rows[0]["id"] == "e1"
+    assert jan_rows[1]["id"] == "e2"
     # Feb event last
     assert rows[-1]["date"] == date(2026, 2, 1)
 
 def test_build_calendar_row_fields():
     e = make_event("one-time", "2026-03-15", id="x1", name="My Event",
                    event_type="transfer", from_account_id="hub", to_account_id="loc",
-                   owner="Joint", tags=["debt"])
+                   tags=["debt"])
     rows = build_calendar([e], date(2026, 3, 1), date(2026, 3, 31))
     assert len(rows) == 1
     r = rows[0]
@@ -203,7 +198,6 @@ def test_build_calendar_row_fields():
     assert r["type"]            == "transfer"
     assert r["from_account_id"] == "hub"
     assert r["to_account_id"]   == "loc"
-    assert r["owner"]           == "Joint"
     assert r["tags"]            == ["debt"]
 
 
@@ -212,10 +206,9 @@ def test_build_calendar_row_fields():
 def _make_state():
     """Minimal fake session-state-like namespace for serialization tests."""
     class NS:
-        members  = [Member("A", "Person A", "#fff")]
+        members  = [Member("A", "Person A")]
         accounts = [Account("chq_a", "Chequing A", "chequing", "A", balance=1000)]
         events   = [make_event("monthly", "2026-01-01", id="e1")]
-        rules    = [AllocationRule("r1", "Rule 1", 1, "percentage", 50, "hub", "sav1")]
         goals    = [Goal("g1", "Goal 1", "sav1", 5000, "2026-12-31")]
     return NS()
 
@@ -227,14 +220,12 @@ def test_blueprint_roundtrip():
     assert len(result["members"])  == 1
     assert len(result["accounts"]) == 1
     assert len(result["events"])   == 1
-    assert len(result["rules"])    == 1
     assert len(result["goals"])    == 1
 
     assert result["members"][0].id    == "A"
     assert result["accounts"][0].id   == "chq_a"
     assert result["accounts"][0].balance == 1000
     assert result["events"][0].id     == "e1"
-    assert result["rules"][0].amount  == 50
     assert result["goals"][0].target_balance == 5000
 
 def test_blueprint_json_is_valid_json():
@@ -253,7 +244,6 @@ def test_json_to_blueprint_missing_keys_defaults_to_empty():
     assert result["members"]  == []
     assert result["accounts"] == []
     assert result["events"]   == []
-    assert result["rules"]    == []
     assert result["goals"]    == []
 
 def test_json_to_blueprint_partial_keys():
@@ -487,13 +477,13 @@ def test_guilt_free_buffer_basic():
     events = [
         make_event("biweekly", "2026-01-02", id="e1",
                    event_type="inflow", amount=2500,
-                   from_account_id=None, to_account_id="chq_a", owner="A"),
+                   from_account_id=None, to_account_id="chq_a"),
         make_event("monthly", "2026-01-01", id="e2",
                    event_type="outflow", amount=400,
-                   from_account_id="chq_a", to_account_id=None, owner="A"),
+                   from_account_id="chq_a", to_account_id=None),
         make_event("biweekly", "2026-01-02", id="e3",
                    event_type="transfer", amount=1500,
-                   from_account_id="chq_a", to_account_id="hub", owner="A"),
+                   from_account_id="chq_a", to_account_id="hub"),
     ]
     buffers = guilt_free_buffers(accounts, events)
     assert "A" in buffers
@@ -509,10 +499,10 @@ def test_guilt_free_buffer_two_owners():
     events = [
         make_event("biweekly", "2026-01-02", id="e1",
                    event_type="inflow", amount=2500,
-                   from_account_id=None, to_account_id="chq_a", owner="A"),
+                   from_account_id=None, to_account_id="chq_a"),
         make_event("biweekly", "2026-01-09", id="e2",
                    event_type="inflow", amount=2000,
-                   from_account_id=None, to_account_id="chq_b", owner="B"),
+                   from_account_id=None, to_account_id="chq_b"),
     ]
     buffers = guilt_free_buffers(accounts, events)
     assert "A" in buffers and "B" in buffers
@@ -523,10 +513,10 @@ def test_guilt_free_buffer_ignores_one_time():
     events = [
         make_event("biweekly", "2026-01-02", id="e1",
                    event_type="inflow", amount=2500,
-                   from_account_id=None, to_account_id="chq_a", owner="A"),
+                   from_account_id=None, to_account_id="chq_a"),
         make_event("one-time", "2026-01-15", id="e2",
                    event_type="inflow", amount=99999,
-                   from_account_id=None, to_account_id="chq_a", owner="A"),
+                   from_account_id=None, to_account_id="chq_a"),
     ]
     buffers = guilt_free_buffers(accounts, events)
     # one-time bonus should NOT inflate the buffer
@@ -540,7 +530,7 @@ def test_guilt_free_buffer_ignores_joint_chequing():
     ]
     events = [make_event("biweekly", "2026-01-02", id="e1",
                          event_type="inflow", amount=5000,
-                         from_account_id=None, to_account_id="chq_j", owner="Joint")]
+                         from_account_id=None, to_account_id="chq_j")]
     buffers = guilt_free_buffers(accounts, events)
     assert buffers == {}
 
@@ -549,86 +539,12 @@ def test_guilt_free_buffer_inactive_events_excluded():
     events = [
         make_event("biweekly", "2026-01-02", id="e1",
                    event_type="inflow", amount=2500,
-                   from_account_id=None, to_account_id="chq_a", owner="A"),
+                   from_account_id=None, to_account_id="chq_a"),
         make_event("monthly", "2026-01-01", id="e2",
                    event_type="outflow", amount=9999,
-                   from_account_id="chq_a", to_account_id=None, owner="A", active=False),
+                   from_account_id="chq_a", to_account_id=None, active=False),
     ]
     buffers = guilt_free_buffers(accounts, events)
     avg_monthly, _ = buffers["A"]
     expected = 2500 * (26 / 12)
     assert abs(avg_monthly - expected) < 0.01
-
-
-# ─── extract_blueprint_json ───────────────────────────────────────────────────
-
-_CAR_FUND_RESPONSE = """\
-Sure! Here is your updated blueprint with the new Car Fund event added.
-
-```json
-{
-  "members": [{"id": "A", "name": "Person A", "color": "#4A90D9"},
-              {"id": "B", "name": "Person B", "color": "#E91E8C"}],
-  "accounts": [{"id": "hub",  "name": "Joint Hub",  "type": "savings",
-                "owner": "Joint", "balance": 0, "interest_rate": 0, "notes": ""},
-               {"id": "sav2", "name": "Goals Fund", "type": "savings",
-                "owner": "Joint", "balance": 0, "interest_rate": 0, "notes": ""}],
-  "events": [
-    {"id": "new-car-fund-id", "name": "Car Fund", "event_type": "transfer",
-     "amount": 150, "amount_type": "fixed",
-     "from_account_id": "hub", "to_account_id": "sav2",
-     "frequency": "monthly", "anchor_date": "2026-05-01", "end_date": null,
-     "owner": "Joint", "tier": 4, "tags": ["savings"], "notes": "", "active": true}
-  ],
-  "rules": [],
-  "goals": []
-}
-```
-
-The Car Fund event will transfer $150 from the Joint Hub to the Goals Fund on the 1st of each month.
-"""
-
-def test_extract_blueprint_json_returns_json_block():
-    raw = extract_blueprint_json(_CAR_FUND_RESPONSE)
-    assert raw is not None
-    parsed = json.loads(raw)   # valid JSON
-    assert "events" in parsed
-
-def test_extract_blueprint_json_no_block_returns_none():
-    assert extract_blueprint_json("Here is my answer with no code block.") is None
-
-def test_extract_blueprint_json_preserves_content():
-    raw = extract_blueprint_json(_CAR_FUND_RESPONSE)
-    parsed = json.loads(raw)
-    assert parsed["events"][0]["name"] == "Car Fund"
-    assert parsed["events"][0]["amount"] == 150
-
-def test_oracle_update_car_fund_end_to_end():
-    """
-    Simulate the full Oracle update flow:
-    parse response → deserialize → verify the new event is present
-    with correct account IDs and frequency.
-    """
-    raw    = extract_blueprint_json(_CAR_FUND_RESPONSE)
-    result = json_to_blueprint(raw)
-
-    car_fund = next((e for e in result["events"] if e.name == "Car Fund"), None)
-    assert car_fund is not None,                          "Car Fund event missing after apply"
-    assert car_fund.event_type      == "transfer"
-    assert car_fund.amount          == 150
-    assert car_fund.from_account_id == "hub"
-    assert car_fund.to_account_id   == "sav2"
-    assert car_fund.frequency       == "monthly"
-    assert car_fund.active          is True
-
-def test_oracle_update_car_fund_appears_in_projection():
-    """After applying the update, Car Fund should show up in build_calendar."""
-    raw    = extract_blueprint_json(_CAR_FUND_RESPONSE)
-    result = json_to_blueprint(raw)
-
-    cal = build_calendar(result["events"], date(2026, 5, 1), date(2026, 7, 31))
-    car_fund_rows = [r for r in cal if r["name"] == "Car Fund"]
-    assert len(car_fund_rows) == 3                        # May, Jun, Jul
-    assert all(r["from_account_id"] == "hub"  for r in car_fund_rows)
-    assert all(r["to_account_id"]   == "sav2" for r in car_fund_rows)
-    assert all(r["amount"]          == 150    for r in car_fund_rows)

@@ -1,5 +1,5 @@
 # payday.py — Payday UI
-# Stack: Python + Streamlit + Ollama (local AI) + pandas
+# Stack: Python + Streamlit + pandas
 
 import streamlit as st
 import uuid
@@ -12,8 +12,8 @@ import pandas as pd
 
 from payday_planner.models import Member, Account, Event
 from payday_planner.engine import (
-    blueprint_to_json, blueprint_to_ai_context, json_to_blueprint,
-    _default_accounts, _default_events, _default_rules, _default_goals,
+    blueprint_to_json, json_to_blueprint,
+    _default_accounts, _default_events, _default_goals,
     build_calendar,
     _monthly_rate, guilt_free_buffers,
 )
@@ -46,23 +46,16 @@ def _apply_blueprint(loaded: dict):
     st.session_state.members  = loaded["members"]
     st.session_state.accounts = loaded["accounts"]
     st.session_state.events   = loaded["events"]
-    st.session_state.rules    = loaded["rules"]
     st.session_state.goals    = loaded["goals"]
 
 
 def init_state():
     if "initialized" not in st.session_state:
         st.session_state.initialized         = True
-        st.session_state.members             = [Member("A", "Person A", "#4A90D9"), Member("B", "Person B", "#E91E8C")]
+        st.session_state.members             = [Member("A", "Person A"), Member("B", "Person B")]
         st.session_state.accounts            = _default_accounts()
         st.session_state.events              = _default_events()
-        st.session_state.rules               = _default_rules()
         st.session_state.goals               = _default_goals()
-        st.session_state.oracle_msgs         = []
-        st.session_state.oracle_backend      = "Gemini"
-        st.session_state.oracle_model        = "qwen2.5:7b"
-        st.session_state.oracle_gemini_model = "gemini-2.5-flash"
-        st.session_state.oracle_gemini_key   = ""
         st.session_state.page                = "Dashboard"
 
         # Auto-load personal blueprint
@@ -114,7 +107,7 @@ def _render_cal_row(row: dict):
     tags_str = " ".join(f"`{tag}`" for tag in (row.get("tags") or []))
     st.markdown(
         f":{color}[{sign} ${row['amount']:,.0f}]&nbsp; {row['name']} "
-        f"&nbsp; {direction} &nbsp; {tags_str} &nbsp; `[{row['owner']}]`"
+        f"&nbsp; {direction} &nbsp; {tags_str}"
     )
 
 
@@ -254,12 +247,9 @@ def page_accounts():
     for i, m in enumerate(st.session_state.members):
         with st.expander(f"{m.name}  ·  {m.id}", expanded=False):
             with st.form(f"member_{m.id}"):
-                c1, c2 = st.columns(2)
-                new_name  = c1.text_input("Name",  value=m.name)
-                new_color = c2.color_picker("Color", value=m.color)
+                new_name = st.text_input("Name", value=m.name)
                 if st.form_submit_button("Save"):
-                    st.session_state.members[i].name  = new_name
-                    st.session_state.members[i].color = new_color
+                    st.session_state.members[i].name = new_name
                     st.rerun()
 
     st.divider()
@@ -310,27 +300,13 @@ def page_accounts():
 
 FREQUENCIES  = ["one-time", "weekly", "biweekly", "biweekly-offset", "monthly", "quarterly"]
 EVENT_TYPES  = ["inflow", "outflow", "transfer"]
-AMOUNT_TYPES = ["fixed", "percentage", "remainder"]
-TIERS        = [1, 2, 3, 4, 5]
-TIER_LABELS  = {
-    1: "1 — Income",
-    2: "2 — Personal Bills",
-    3: "3 — Hub Transfers",
-    4: "4 — Joint Expenses & Savings",
-    5: "5 — Debt Payoff & Goals",
-}
 
 
 def _event_fields(prefix: str, ev: Optional[Event] = None) -> dict:
-    c1, c2, c3 = st.columns(3)
+    c1, c2 = st.columns(2)
     name       = c1.text_input("Name",  value=ev.name if ev else "")
     event_type = c2.selectbox("Type",   EVENT_TYPES, index=EVENT_TYPES.index(ev.event_type) if ev else 0)
-    owner      = c3.selectbox("Owner",  OWNERS,      index=OWNERS.index(ev.owner) if ev else 0)
-    c4, c5, c6 = st.columns(3)
-    amount_type = c4.selectbox("Amount Type", AMOUNT_TYPES, index=AMOUNT_TYPES.index(ev.amount_type) if ev else 0)
-    amount      = c5.number_input("Amount", value=float(ev.amount) if ev else 0.0, step=10.0)
-    tier        = c6.selectbox("Tier", TIERS, index=TIERS.index(ev.tier) if ev else 0,
-                               format_func=lambda t: TIER_LABELS[t])
+    amount     = st.number_input("Amount", value=float(ev.amount) if ev else 0.0, step=10.0)
     c7, c8 = st.columns(2)
     with c7:
         from_id = _account_selector("From Account", f"{prefix}_from", ev.from_account_id if ev else None)
@@ -345,8 +321,8 @@ def _event_fields(prefix: str, ev: Optional[Event] = None) -> dict:
     tags_raw  = st.text_input("Tags (comma-separated)", value=", ".join(ev.tags) if ev else "")
     notes     = st.text_input("Notes", value=ev.notes if ev else "")
     active    = st.checkbox("Active", value=ev.active if ev else True) if ev else True
-    return dict(name=name, event_type=event_type, owner=owner, amount_type=amount_type,
-                amount=amount, tier=tier, from_id=from_id, to_id=to_id,
+    return dict(name=name, event_type=event_type,
+                amount=amount, from_id=from_id, to_id=to_id,
                 frequency=frequency, anchor=anchor, has_end=has_end, end_val=end_val,
                 tags_raw=tags_raw, notes=notes, active=active)
 
@@ -360,11 +336,10 @@ def page_events():
             if st.form_submit_button("Add Event") and f["name"]:
                 st.session_state.events.append(Event(
                     id=str(uuid.uuid4()), name=f["name"], event_type=f["event_type"],
-                    amount=f["amount"], amount_type=f["amount_type"],
+                    amount=f["amount"],
                     from_account_id=f["from_id"], to_account_id=f["to_id"],
                     frequency=f["frequency"], anchor_date=f["anchor"].isoformat(),
                     end_date=f["end_val"].isoformat() if f["has_end"] else None,
-                    owner=f["owner"], tier=f["tier"],
                     tags=[t.strip() for t in f["tags_raw"].split(",") if t.strip()],
                     notes=f["notes"],
                 ))
@@ -372,15 +347,13 @@ def page_events():
 
     st.divider()
 
-    fc1, fc2, fc3 = st.columns(3)
-    f_owner  = fc1.multiselect("Owner",  OWNERS,      default=OWNERS)
-    f_type   = fc2.multiselect("Type",   EVENT_TYPES, default=EVENT_TYPES)
-    f_status = fc3.radio("Status", ["All", "Active", "Inactive"], horizontal=True)
+    fc1, fc2 = st.columns(2)
+    f_type   = fc1.multiselect("Type",   EVENT_TYPES, default=EVENT_TYPES)
+    f_status = fc2.radio("Status", ["All", "Active", "Inactive"], horizontal=True)
 
     shown = [
         e for e in st.session_state.events
-        if e.owner in f_owner
-        and e.event_type in f_type
+        if e.event_type in f_type
         and (f_status == "All" or (f_status == "Active") == e.active)
     ]
 
@@ -388,7 +361,7 @@ def page_events():
         real_idx = st.session_state.events.index(event)
         end_str  = f" → {event.end_date}" if event.end_date else ""
         flag     = "✓" if event.active else "✗"
-        label    = f"{flag} [{event.owner}] {event.name}  ·  ${event.amount:,.0f}  ·  {event.frequency}{end_str}"
+        label    = f"{flag} {event.name}  ·  ${event.amount:,.0f}  ·  {event.frequency}{end_str}"
 
         with st.expander(label):
             with st.form(f"evt_{event.id}"):
@@ -396,8 +369,8 @@ def page_events():
                 sv, dl = st.columns([4, 1])
                 if sv.form_submit_button("Save"):
                     e = st.session_state.events[real_idx]
-                    e.name, e.event_type, e.owner = f["name"], f["event_type"], f["owner"]
-                    e.amount_type, e.amount, e.tier = f["amount_type"], f["amount"], f["tier"]
+                    e.name, e.event_type = f["name"], f["event_type"]
+                    e.amount = f["amount"]
                     e.from_account_id, e.to_account_id = f["from_id"], f["to_id"]
                     e.frequency   = f["frequency"]
                     e.anchor_date = f["anchor"].isoformat()
@@ -415,17 +388,15 @@ def page_events():
 def page_timeline():
     st.header("Timeline")
 
-    c1, c2, c3 = st.columns(3)
-    start        = c1.date_input("From", value=date.today())
-    end          = c2.date_input("To",   value=date.today() + timedelta(days=56))
-    filter_owner = c3.multiselect("Owner", OWNERS, default=OWNERS)
+    c1, c2 = st.columns(2)
+    start = c1.date_input("From", value=date.today())
+    end   = c2.date_input("To",   value=date.today() + timedelta(days=56))
 
     if start > end:
         st.error("Start date must be before end date.")
         return
 
-    cal = [r for r in build_calendar(st.session_state.events, start, end)
-           if r["owner"] in filter_owner]
+    cal = build_calendar(st.session_state.events, start, end)
 
     if not cal:
         st.info("No events in this range.")
@@ -506,132 +477,10 @@ def page_flow_diagram():
     st.components.v1.html(html, height=640, scrolling=True)
 
 
-# ─── PAGE: ORACLE ─────────────────────────────────────────────────────────────
-
-def extract_blueprint_json(content: str) -> Optional[str]:
-    """Return the first ```json ... ``` block from an Oracle response, or None."""
-    if "```json" not in content:
-        return None
-    try:
-        return content.split("```json")[1].split("```")[0].strip()
-    except IndexError:
-        return None
-
-
-_ORACLE_SYSTEM = """\
-You are the Payday Oracle, a personal finance assistant embedded in a money-flow planning app.
-You have the user's complete financial setup in JSON (accounts, events, rules, goals).
-
-Your responsibilities:
-1. Answer questions about their money flow clearly and concisely.
-2. Generate payday checklists on demand using exact account names and amounts.
-3. When asked to update the setup, output a COMPLETE updated blueprint in the same JSON schema, wrapped in ```json ... ``` code blocks.
-4. Explain your reasoning briefly.
-
-When writing blueprint updates:
-- ALWAYS copy the existing blueprint exactly and apply only the requested change — do not invent, rename, or remove anything else.
-- Account IDs must match exactly (e.g. "hub", "chq_a", "sav2") — never substitute account names for IDs.
-- Every Event must include all fields: id, name, event_type, amount, amount_type, from_account_id, to_account_id, frequency, anchor_date, end_date, owner, tier, tags, notes, active.
-- Use a new uuid-style string for any new Event or Rule id (e.g. "a1b2c3d4-..."). Never reuse an existing id.
-- Valid frequencies: one-time, weekly, biweekly, biweekly-offset, monthly, quarterly.
-- anchor_date and end_date must be ISO format (YYYY-MM-DD). Use null for end_date if not applicable.
-
-Current setup:
-{blueprint}
-"""
-
-GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
-
-
-def _call_oracle(backend: str, system: str, messages: list,
-                 ollama_model: str = "", gemini_model: str = "", gemini_key: str = "") -> str:
-    if backend == "Ollama":
-        import ollama as _ollama
-        response = _ollama.chat(
-            model=ollama_model,
-            messages=[{"role": "system", "content": system}, *messages],
-        )
-        return response.message.content
-    else:
-        import google.generativeai as genai
-        genai.configure(api_key=gemini_key)
-        history = [
-            {"role": "model" if m["role"] == "assistant" else "user",
-             "parts": [m["content"]]}
-            for m in messages[:-1]
-        ]
-        model    = genai.GenerativeModel(model_name=gemini_model, system_instruction=system)
-        chat     = model.start_chat(history=history)
-        response = chat.send_message(messages[-1]["content"])
-        return response.text
-
-
-def page_oracle():
-    st.header("Oracle")
-
-    if st.button("Clear conversation"):
-        st.session_state.oracle_msgs = []
-        st.rerun()
-
-    if st.session_state.oracle_msgs:
-        last = st.session_state.oracle_msgs[-1]
-        if last["role"] == "assistant" and "```json" in last["content"]:
-            try:
-                raw = extract_blueprint_json(last["content"])
-                if raw is None:
-                    raise ValueError("No JSON block found in response")
-                with st.expander("Blueprint update detected — preview & apply", expanded=True):
-                    st.json(raw)
-                    if st.button("Apply Update", type="primary"):
-                        _apply_blueprint(json_to_blueprint(raw))
-                        st.success("Blueprint updated.")
-                        st.rerun()
-            except Exception as ex:
-                st.warning(f"Could not parse blueprint update: {ex}")
-
-    for msg in st.session_state.oracle_msgs:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    user_input = st.chat_input(
-        "Ask the Oracle — e.g. 'Add a $150/month Car Fund transfer from Hub to Goals'"
-    )
-    if user_input:
-        with st.chat_message("user"):
-            st.markdown(user_input)
-        st.session_state.oracle_msgs.append({"role": "user", "content": user_input})
-
-        blueprint = blueprint_to_json(st.session_state)
-        system    = _ORACLE_SYSTEM.format(blueprint=blueprint)
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    reply = _call_oracle(
-                        backend      = st.session_state.oracle_backend,
-                        system       = system,
-                        messages     = st.session_state.oracle_msgs,
-                        ollama_model = st.session_state.oracle_model,
-                        gemini_model = st.session_state.oracle_gemini_model,
-                        gemini_key   = st.session_state.oracle_gemini_key,
-                    )
-                except Exception as ex:
-                    reply = f"**Error:** {ex}"
-            st.markdown(reply)
-        st.session_state.oracle_msgs.append({"role": "assistant", "content": reply})
-        st.rerun()
-
-
 # ─── PAGE: EXPORT / IMPORT ────────────────────────────────────────────────────
 
 def page_export():
     st.header("Export & Import")
-
-    st.subheader("AI Context")
-    st.caption("Paste this into Claude, Gemini, or any AI chat to discuss your finances. Noise stripped, account IDs resolved, summary first.")
-    ai_context = blueprint_to_ai_context(st.session_state)
-    st.text_area("AI-ready snapshot", value=ai_context, height=300)
-
-    st.divider()
 
     st.subheader("JSON Blueprint")
     st.caption("Complete export — import this file to restore everything exactly.")
@@ -684,7 +533,6 @@ PAGES = {
     "Events":       page_events,
     "Timeline":     page_timeline,
     "Flow Diagram": page_flow_diagram,
-    "Oracle":       page_oracle,
     "Export":       page_export,
 }
 
@@ -694,7 +542,6 @@ PAGE_ICONS = {
     "Events":       "📅",
     "Timeline":     "🗓️",
     "Flow Diagram": "🔀",
-    "Oracle":       "🔮",
     "Export":       "📤",
 }
 
@@ -892,46 +739,6 @@ def main():
             f'</div>',
             unsafe_allow_html=True,
         )
-
-        st.divider()
-
-        st.caption("Oracle")
-        st.session_state.oracle_backend = st.selectbox(
-            "Backend", ["Gemini", "Ollama"],
-            index=["Gemini", "Ollama"].index(st.session_state.oracle_backend),
-            label_visibility="collapsed",
-        )
-
-        if st.session_state.oracle_backend == "Gemini":
-            st.session_state.oracle_gemini_key = st.text_input(
-                "API key", value=st.session_state.oracle_gemini_key,
-                type="password", placeholder="Gemini API key",
-                label_visibility="collapsed",
-            )
-            current = st.session_state.oracle_gemini_model
-            idx     = GEMINI_MODELS.index(current) if current in GEMINI_MODELS else 0
-            st.session_state.oracle_gemini_model = st.selectbox(
-                "Gemini model", GEMINI_MODELS, index=idx, label_visibility="collapsed"
-            )
-            st.caption("Get a free key at aistudio.google.com")
-        else:
-            try:
-                import ollama as _ollama
-                model_list = [m.model for m in _ollama.list().models]
-            except Exception:
-                model_list = []
-            if model_list:
-                current = st.session_state.oracle_model
-                idx     = model_list.index(current) if current in model_list else 0
-                st.session_state.oracle_model = st.selectbox(
-                    "Ollama model", model_list, index=idx, label_visibility="collapsed"
-                )
-            else:
-                st.session_state.oracle_model = st.text_input(
-                    "Ollama model", value=st.session_state.oracle_model,
-                    label_visibility="collapsed",
-                )
-                st.caption("`ollama pull qwen2.5:7b`")
 
     PAGES[st.session_state.page]()
 

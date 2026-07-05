@@ -9,7 +9,7 @@ from typing import Optional, List
 
 import pandas as pd
 
-from payday_planner.models import Member, Account, Event, AllocationRule, Goal
+from payday_planner.models import Member, Account, Event, Goal
 
 
 # ─── SERIALIZATION ────────────────────────────────────────────────────────────
@@ -19,7 +19,6 @@ def _compute_summary(accounts: List[Account], events: List[Event], goals: List[G
     bw = 12 / 26  # biweekly-to-monthly conversion factor
 
     # ── Net worth ──────────────────────────────────────────────────────────────
-    acct_map = {a.id: a for a in accounts}
     liquid      = sum(a.balance for a in accounts if a.type in ("chequing", "savings", "investment"))
     debt        = sum(a.balance for a in accounts if a.type == "debt")
     re_equity   = sum(a.market_value - a.balance for a in accounts
@@ -44,27 +43,6 @@ def _compute_summary(accounts: List[Account], events: List[Event], goals: List[G
             "safe_biweekly":  round(safe_bw, 2),
         }
 
-    # ── Goal progress ─────────────────────────────────────────────────────────
-    goal_progress = []
-    for g in goals:
-        acct = acct_map.get(g.account_id)
-        if acct is None:
-            continue
-        current = acct.balance
-        target  = g.target_balance
-        if acct.type in ("debt", "liability"):
-            pct = 100.0 if current == 0 else round((1 - current / target) * 100, 1) if target != 0 else 0.0
-        else:
-            pct = round((current / target) * 100, 1) if target != 0 else 100.0
-        goal_progress.append({
-            "name":            g.name,
-            "account_id":      g.account_id,
-            "current_balance": round(current, 2),
-            "target_balance":  target,
-            "target_date":     g.target_date,
-            "pct_complete":    pct,
-        })
-
     return {
         "generated_at":      date.today().isoformat(),
         "net_worth":         round(net_worth, 2),
@@ -80,91 +58,22 @@ def _compute_summary(accounts: List[Account], events: List[Event], goals: List[G
             "monthly_net":     round(mo_in - mo_out, 2),
         },
         "guilt_free_buffers": gf_section,
-        "goal_progress":      goal_progress,
     }
 
 
-def blueprint_to_ai_context(ss) -> str:
-    """
-    Produce a clean, token-efficient snapshot for pasting into AI chat.
-    Strips UI noise (colors, empty fields, UUIDs), resolves account IDs to
-    names, and puts the summary first so the AI has immediate orientation.
-    """
-    today = date.today().isoformat()
-    acct_name = {a.id: a.name for a in ss.accounts}
-
-    # ── Members ───────────────────────────────────────────────────────────────
-    members = [{"id": m.id, "name": m.name} for m in ss.members]
-
-    # ── Accounts ──────────────────────────────────────────────────────────────
-    accounts = []
-    for a in ss.accounts:
-        entry: dict = {"name": a.name, "type": a.type, "owner": a.owner, "balance": round(a.balance, 2)}
-        if a.interest_rate:
-            entry["interest_rate"] = a.interest_rate
-        if a.market_value:
-            entry["market_value"] = a.market_value
-            entry["equity"] = round(a.market_value - a.balance, 2)
-        if a.notes:
-            entry["notes"] = a.notes
-        accounts.append(entry)
-
-    # ── Events ────────────────────────────────────────────────────────────────
-    events = []
-    for e in ss.events:
-        if not e.active:
-            continue
-        entry = {
-            "name":      e.name,
-            "type":      e.event_type,
-            "amount":    e.amount,
-            "frequency": e.frequency,
-            "anchor":    e.anchor_date,
-        }
-        if e.end_date:
-            entry["ends"] = e.end_date
-        if e.from_account_id:
-            entry["from"] = acct_name.get(e.from_account_id, e.from_account_id)
-        if e.to_account_id:
-            entry["to"] = acct_name.get(e.to_account_id, e.to_account_id)
-        if e.owner:
-            entry["owner"] = e.owner
-        if e.notes:
-            entry["notes"] = e.notes
-        events.append(entry)
-
-    # ── Goals ─────────────────────────────────────────────────────────────────
-    goals = []
-    for g in ss.goals:
-        entry = {
-            "name":    g.name,
-            "account": acct_name.get(g.account_id, g.account_id),
-            "target":  g.target_balance,
-            "by":      g.target_date,
-        }
-        if g.notes:
-            entry["notes"] = g.notes
-        goals.append(entry)
-
-    summary = _compute_summary(ss.accounts, ss.events, ss.goals)
-
-    doc = {
-        "as_of":    today,
-        "members":  members,
-        "summary":  summary,
-        "accounts": accounts,
-        "events":   events,
-        "goals":    goals,
-    }
-    return json.dumps(doc, indent=2)
+def _event_to_dict(e: Event) -> dict:
+    d = asdict(e)
+    nxt = next_occurrence(e, date.today())
+    if nxt:
+        d["next_occurrence"] = nxt
+    return d
 
 
 def blueprint_to_json(ss) -> str:
     return json.dumps({
         "members":  [asdict(m) for m in ss.members],
         "accounts": [asdict(a) for a in ss.accounts],
-        "events":   [asdict(e) for e in ss.events],
-        "rules":    [asdict(r) for r in ss.rules],
+        "events":   [_event_to_dict(e) for e in ss.events],
         "goals":    [asdict(g) for g in ss.goals],
         "summary":  _compute_summary(ss.accounts, ss.events, ss.goals),
     }, indent=2)
@@ -172,7 +81,6 @@ def blueprint_to_json(ss) -> str:
 
 _ACCOUNT_TYPES  = {"chequing", "savings", "debt", "investment", "liability"}
 _EVENT_TYPES    = {"inflow", "outflow", "transfer"}
-_AMOUNT_TYPES   = {"fixed", "percentage", "remainder"}
 _FREQUENCIES    = {"one-time", "weekly", "biweekly", "biweekly-offset", "monthly", "quarterly"}
 _MAX_BYTES      = 5 * 1024 * 1024  # 5 MB
 
@@ -225,25 +133,16 @@ def _validate_blueprint(data: dict):
         _require(e, "id",          str,   lbl)
         _require(e, "name",        str,   lbl)
         _require(e, "event_type",  str,   lbl)
-        _require(e, "amount_type", str,   lbl)
         _require(e, "frequency",   str,   lbl)
         _require(e, "amount",      (int, float), lbl)
         if e["event_type"] not in _EVENT_TYPES:
             raise ValueError(f"{lbl}: invalid event_type {e['event_type']!r}, must be one of {sorted(_EVENT_TYPES)}")
-        if e["amount_type"] not in _AMOUNT_TYPES:
-            raise ValueError(f"{lbl}: invalid amount_type {e['amount_type']!r}, must be one of {sorted(_AMOUNT_TYPES)}")
         if e["frequency"] not in _FREQUENCIES:
             raise ValueError(f"{lbl}: invalid frequency {e['frequency']!r}, must be one of {sorted(_FREQUENCIES)}")
         if e["amount"] < 0:
             raise ValueError(f"{lbl}: 'amount' must be >= 0")
         _require_isodate(e, "anchor_date", lbl, required=True)
         _require_isodate(e, "end_date",    lbl, required=False)
-
-    for i, r in enumerate(data.get("rules", [])):
-        lbl = f"rules[{i}] ({r.get('name', '?')})"
-        _require(r, "id",       str, lbl)
-        _require(r, "name",     str, lbl)
-        _require(r, "priority", int, lbl)
 
     for i, g in enumerate(data.get("goals", [])):
         lbl = f"goals[{i}] ({g.get('name', '?')})"
@@ -262,8 +161,8 @@ def json_to_blueprint(raw: str) -> dict:
     return {
         "members":  [Member(**m)         for m in data.get("members", [])],
         "accounts": [Account(**a)        for a in data.get("accounts", [])],
-        "events":   [Event(**e)          for e in data.get("events", [])],
-        "rules":    [AllocationRule(**r) for r in data.get("rules", [])],
+        "events":   [Event(**{k: v for k, v in e.items() if k != "next_occurrence"})
+                     for e in data.get("events", [])],
         "goals":    [Goal(**g)           for g in data.get("goals", [])],
     }
 
@@ -286,54 +185,36 @@ def _default_accounts():
 
 def _default_events():
     return [
-        Event(str(uuid.uuid4()), "A Paycheque", "inflow", 2500, "fixed",
+        Event(str(uuid.uuid4()), "A Paycheque", "inflow", 2500,
               None, "chq_a", "biweekly", "2026-01-02",
-              owner="A", tier=1, tags=["income"]),
-        Event(str(uuid.uuid4()), "B Paycheque", "inflow", 2000, "fixed",
+              tags=["income"]),
+        Event(str(uuid.uuid4()), "B Paycheque", "inflow", 2000,
               None, "chq_b", "biweekly", "2026-01-09",
-              owner="B", tier=1, tags=["income"]),
-        Event(str(uuid.uuid4()), "A Personal Bills", "outflow", 400, "fixed",
+              tags=["income"]),
+        Event(str(uuid.uuid4()), "A Personal Bills", "outflow", 400,
               "chq_a", None, "monthly", "2026-01-01",
-              owner="A", tier=2, tags=["bills"]),
-        Event(str(uuid.uuid4()), "B Personal Bills", "outflow", 300, "fixed",
+              tags=["bills"]),
+        Event(str(uuid.uuid4()), "B Personal Bills", "outflow", 300,
               "chq_b", None, "monthly", "2026-01-01",
-              owner="B", tier=2, tags=["bills"]),
-        Event(str(uuid.uuid4()), "Installment Payment", "outflow", 200, "fixed",
+              tags=["bills"]),
+        Event(str(uuid.uuid4()), "Installment Payment", "outflow", 200,
               "chq_a", None, "monthly", "2026-01-01", end_date="2026-06-30",
-              owner="A", tier=2, tags=["temporary"]),
-        Event(str(uuid.uuid4()), "A → Joint Hub", "transfer", 1500, "fixed",
+              tags=["temporary"]),
+        Event(str(uuid.uuid4()), "A → Joint Hub", "transfer", 1500,
               "chq_a", "hub", "biweekly", "2026-01-02",
-              owner="A", tier=3, tags=["hub"]),
-        Event(str(uuid.uuid4()), "B → Joint Hub", "transfer", 1200, "fixed",
+              tags=["hub"]),
+        Event(str(uuid.uuid4()), "B → Joint Hub", "transfer", 1200,
               "chq_b", "hub", "biweekly", "2026-01-09",
-              owner="B", tier=3, tags=["hub"]),
-        Event(str(uuid.uuid4()), "Mortgage", "outflow", 1800, "fixed",
+              tags=["hub"]),
+        Event(str(uuid.uuid4()), "Mortgage", "outflow", 1800,
               "hub", "mtg", "monthly", "2026-01-01",
-              owner="Joint", tier=4, tags=["housing"]),
-        Event(str(uuid.uuid4()), "Shared Bills", "outflow", 500, "fixed",
+              tags=["housing"]),
+        Event(str(uuid.uuid4()), "Shared Bills", "outflow", 500,
               "hub", None, "monthly", "2026-01-01",
-              owner="Joint", tier=4, tags=["bills"]),
-        Event(str(uuid.uuid4()), "LOC Payment", "transfer", 500, "fixed",
+              tags=["bills"]),
+        Event(str(uuid.uuid4()), "LOC Payment", "transfer", 500,
               "hub", "loc", "biweekly", "2026-01-02", end_date="2026-12-31",
-              owner="Joint", tier=5, tags=["debt", "priority"]),
-    ]
-
-
-def _default_rules():
-    return [
-        AllocationRule(str(uuid.uuid4()), "Debt Payoff Priority", 1,
-                       "percentage", 40, "hub", "loc",
-                       condition_account_id="loc", condition_operator="gt", condition_value=0,
-                       notes="Pay down line of credit first"),
-        AllocationRule(str(uuid.uuid4()), "Emergency Fund", 2,
-                       "percentage", 30, "hub", "sav1",
-                       notes="Build emergency fund to 3–6 months of expenses"),
-        AllocationRule(str(uuid.uuid4()), "Goals Fund", 3,
-                       "percentage", 20, "hub", "sav2",
-                       notes="Vacations, large purchases, etc."),
-        AllocationRule(str(uuid.uuid4()), "Investments", 4,
-                       "percentage", 10, "hub", "inv_a",
-                       notes="Remainder to investments"),
+              tags=["debt", "priority"]),
     ]
 
 
@@ -421,6 +302,38 @@ def get_occurrences(event: Event, start: date, end: date) -> List[date]:
     return results
 
 
+def next_occurrence(event: Event, from_date: date) -> Optional[str]:
+    """Return the ISO date of the next occurrence of `event` on or after `from_date`."""
+    if not event.active:
+        return None
+    anchor  = date.fromisoformat(event.anchor_date)
+    end_cap = date.fromisoformat(event.end_date) if event.end_date else None
+
+    cur = anchor
+    if event.frequency == "one-time":
+        pass
+    elif event.frequency in ("biweekly", "biweekly-offset"):
+        while cur < from_date:
+            cur += timedelta(days=14)
+    elif event.frequency == "weekly":
+        while cur < from_date:
+            cur += timedelta(days=7)
+    elif event.frequency == "monthly":
+        while cur < from_date:
+            cur = _advance_month(cur)
+    elif event.frequency == "quarterly":
+        while cur < from_date:
+            cur = _advance_quarter(cur)
+    else:
+        return None
+
+    if cur < from_date:
+        return None
+    if end_cap is not None and cur > end_cap:
+        return None
+    return cur.isoformat()
+
+
 def build_calendar(events: List[Event], start: date, end: date) -> List[dict]:
     rows = []
     for event in events:
@@ -431,15 +344,12 @@ def build_calendar(events: List[Event], start: date, end: date) -> List[dict]:
                 "name":            event.name,
                 "type":            event.event_type,
                 "amount":          event.amount,
-                "amount_type":     event.amount_type,
                 "from_account_id": event.from_account_id,
                 "to_account_id":   event.to_account_id,
-                "owner":           event.owner,
-                "tier":            event.tier,
                 "tags":            event.tags,
                 "notes":           event.notes,
             })
-    rows.sort(key=lambda x: (x["date"], x["tier"]))
+    rows.sort(key=lambda x: x["date"])
     return rows
 
 
