@@ -19,9 +19,9 @@ from payday_planner.models import Member, Account, Event
 # sweep thresholds, chequing accounts don't carry statement dates, etc.
 _ACCOUNT_CORE_FIELDS = ["id", "name", "type", "owner", "balance"]
 _ACCOUNT_TYPE_FIELDS = {
-    "chequing":   ["target_floor", "sweep_ceiling", "sweep_role"],
-    "savings":    ["interest_rate", "target_floor", "sweep_ceiling", "sweep_role"],
-    "investment": ["target_floor", "sweep_ceiling", "sweep_role"],
+    "chequing":   ["target_floor"],
+    "savings":    ["interest_rate", "target_floor"],
+    "investment": ["target_floor"],
     "debt":       ["statement_close_date", "payment_due_date"],
     "liability":  ["interest_rate", "market_value", "statement_close_date", "payment_due_date"],
 }
@@ -44,6 +44,7 @@ def _event_to_dict(e: Event) -> dict:
 
 def blueprint_to_json(ss) -> str:
     return json.dumps({
+        "current_date": date.today().isoformat(),
         "members":  [asdict(m) for m in ss.members],
         "accounts": [_account_to_dict(a) for a in ss.accounts],
         "events":   [_event_to_dict(e) for e in ss.events],
@@ -53,7 +54,6 @@ def blueprint_to_json(ss) -> str:
 _ACCOUNT_TYPES   = {"chequing", "savings", "debt", "investment", "liability"}
 _EVENT_TYPES     = {"inflow", "outflow", "transfer"}
 _FREQUENCIES     = {"one-time", "weekly", "biweekly", "biweekly-offset", "monthly", "quarterly"}
-_SWEEP_ROLES     = {"buffer", "restricted"}
 _EXECUTION_TYPES = {"auto", "manual"}
 _WEEKEND_SHIFTS   = {"none", "previous_business_day", "next_business_day"}
 _MAX_BYTES       = 5 * 1024 * 1024  # 5 MB
@@ -113,9 +113,7 @@ def _validate_blueprint(data: dict):
         for num_field in ("balance", "interest_rate", "market_value"):
             if num_field in a and not isinstance(a[num_field], (int, float)):
                 raise ValueError(f"{lbl}: '{num_field}' must be a number")
-        for num_field in ("target_floor", "sweep_ceiling"):
-            _require_optional_number(a, num_field, lbl)
-        _require_optional_enum(a, "sweep_role", _SWEEP_ROLES, lbl)
+        _require_optional_number(a, "target_floor", lbl)
         _require_isodate(a, "statement_close_date", lbl, required=False)
         _require_isodate(a, "payment_due_date",     lbl, required=False)
 

@@ -20,8 +20,6 @@ class Account:
     interest_rate: float = 0.0
     market_value: float = 0.0  # for liability accounts: estimated sale value of the asset
     target_floor: Optional[float] = None        # minimum balance to keep in this account
-    sweep_ceiling: Optional[float] = None       # balance above which surplus is safe to sweep out
-    sweep_role: Optional[str] = None            # buffer | restricted — sweep eligibility
     statement_close_date: Optional[str] = None  # debt accounts: ISO date
     payment_due_date: Optional[str] = None      # debt accounts: ISO date
 

@@ -1,21 +1,61 @@
+# Node / Vite build artifacts
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+.eslintcache
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Environment & secrets
+.env
+.env.*
+.streamlit/secrets.toml
+
+# Scratch, temporary & local data directories
+scratch/
+tmp/
+temp/
+private/
+exports/
+backups/
+
+# Personal blueprints, exported JSON & financial data — strictly local
+*.blueprint.json
+blueprint*.json
+*blueprint*.json
+*_personal.json
+*personal*.json
+my_blueprint.json
+payday_*.json
+user_*.json
+*.private.json
+*.export.json
+*.bak
+
 # Python-generated files
 __pycache__/
 *.py[oc]
 build/
-dist/
 wheels/
 *.egg-info
+.venv/
 
-# Virtual environments
-.venv
-
-# Personal blueprints — keep out of git
-*_personal.json
-my_blueprint.json
-blueprint.json
-
-# Streamlit secrets (for cloud deployments)
-.streamlit/secrets.toml
-
-# Claude Code
+# OS & IDE Tooling
+.DS_Store
+Thumbs.db
+.gemini/
 .claude/
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
