@@ -16,11 +16,12 @@ st_stub.set_page_config = lambda **kw: None
 st_stub.session_state   = {}
 sys.modules["streamlit"] = st_stub
 
-from payday_planner.models import Event, Account, Member, Goal
+from payday_planner.models import Event, Account, Member
 from payday_planner.engine import (
     _advance_month,
     _advance_quarter,
     get_occurrences,
+    next_occurrence,
     build_calendar,
     project_balances,
     guilt_free_buffers,
@@ -150,6 +151,56 @@ def test_quarterly_basic():
     ]
 
 
+# ─── get_occurrences: weekend_shift ──────────────────────────────────────────
+# 2026-01-01 is a Thursday, so 2026-01-03/04 are Sat/Sun and 2026-01-17 is a Sat.
+
+def test_weekend_shift_none_leaves_saturday_unshifted():
+    e = make_event("one-time", "2026-01-03")  # default weekend_shift = "none"
+    result = get_occurrences(e, date(2026, 1, 1), date(2026, 1, 31))
+    assert result == [date(2026, 1, 3)]
+
+def test_weekend_shift_previous_business_day_saturday():
+    e = make_event("one-time", "2026-01-03", weekend_shift="previous_business_day")
+    result = get_occurrences(e, date(2026, 1, 1), date(2026, 1, 31))
+    assert result == [date(2026, 1, 2)]  # Friday
+
+def test_weekend_shift_previous_business_day_sunday():
+    e = make_event("one-time", "2026-01-04", weekend_shift="previous_business_day")
+    result = get_occurrences(e, date(2026, 1, 1), date(2026, 1, 31))
+    assert result == [date(2026, 1, 2)]  # Friday
+
+def test_weekend_shift_next_business_day_saturday():
+    e = make_event("one-time", "2026-01-03", weekend_shift="next_business_day")
+    result = get_occurrences(e, date(2026, 1, 1), date(2026, 1, 31))
+    assert result == [date(2026, 1, 5)]  # Monday
+
+def test_weekend_shift_next_business_day_sunday():
+    e = make_event("one-time", "2026-01-04", weekend_shift="next_business_day")
+    result = get_occurrences(e, date(2026, 1, 1), date(2026, 1, 31))
+    assert result == [date(2026, 1, 5)]  # Monday
+
+def test_weekend_shift_applies_across_recurring_cycles():
+    e = make_event("biweekly", "2026-01-03", weekend_shift="next_business_day")
+    result = get_occurrences(e, date(2026, 1, 1), date(2026, 1, 31))
+    assert result == [date(2026, 1, 5), date(2026, 1, 19)]  # both Saturdays shift to Monday
+
+def test_weekend_shift_pulls_occurrence_into_window():
+    # Raw anchor (Sat) is before `start`, but shifting forward lands inside the window.
+    e = make_event("one-time", "2026-01-03", weekend_shift="next_business_day")
+    result = get_occurrences(e, date(2026, 1, 5), date(2026, 1, 31))
+    assert result == [date(2026, 1, 5)]
+
+def test_weekend_shift_pushes_occurrence_out_of_window():
+    # Raw anchor (Sat) is inside the window, but shifting back lands before `start`.
+    e = make_event("one-time", "2026-01-03", weekend_shift="previous_business_day")
+    result = get_occurrences(e, date(2026, 1, 3), date(2026, 1, 31))
+    assert result == []
+
+def test_next_occurrence_applies_weekend_shift():
+    e = make_event("biweekly", "2026-01-03", weekend_shift="next_business_day")
+    assert next_occurrence(e, date(2026, 1, 1)) == "2026-01-05"
+
+
 # ─── get_occurrences: end_date cap ───────────────────────────────────────────
 
 def test_end_date_caps_occurrences():
@@ -188,8 +239,7 @@ def test_build_calendar_sorted_by_date_preserving_insertion_order():
 
 def test_build_calendar_row_fields():
     e = make_event("one-time", "2026-03-15", id="x1", name="My Event",
-                   event_type="transfer", from_account_id="hub", to_account_id="loc",
-                   tags=["debt"])
+                   event_type="transfer", from_account_id="hub", to_account_id="loc")
     rows = build_calendar([e], date(2026, 3, 1), date(2026, 3, 31))
     assert len(rows) == 1
     r = rows[0]
@@ -198,7 +248,6 @@ def test_build_calendar_row_fields():
     assert r["type"]            == "transfer"
     assert r["from_account_id"] == "hub"
     assert r["to_account_id"]   == "loc"
-    assert r["tags"]            == ["debt"]
 
 
 # ─── serialization round-trip ─────────────────────────────────────────────────
@@ -209,7 +258,6 @@ def _make_state():
         members  = [Member("A", "Person A")]
         accounts = [Account("chq_a", "Chequing A", "chequing", "A", balance=1000)]
         events   = [make_event("monthly", "2026-01-01", id="e1")]
-        goals    = [Goal("g1", "Goal 1", "sav1", 5000, "2026-12-31")]
     return NS()
 
 def test_blueprint_roundtrip():
@@ -220,13 +268,11 @@ def test_blueprint_roundtrip():
     assert len(result["members"])  == 1
     assert len(result["accounts"]) == 1
     assert len(result["events"])   == 1
-    assert len(result["goals"])    == 1
 
     assert result["members"][0].id    == "A"
     assert result["accounts"][0].id   == "chq_a"
     assert result["accounts"][0].balance == 1000
     assert result["events"][0].id     == "e1"
-    assert result["goals"][0].target_balance == 5000
 
 def test_blueprint_json_is_valid_json():
     ns = _make_state()
@@ -244,7 +290,6 @@ def test_json_to_blueprint_missing_keys_defaults_to_empty():
     assert result["members"]  == []
     assert result["accounts"] == []
     assert result["events"]   == []
-    assert result["goals"]    == []
 
 def test_json_to_blueprint_partial_keys():
     raw = json.dumps({"accounts": [{"id": "x", "name": "X", "type": "chequing",
@@ -259,6 +304,111 @@ def test_json_to_blueprint_invalid_json_raises():
     import pytest
     with pytest.raises(json.JSONDecodeError):
         json_to_blueprint("not valid json {{{")
+
+
+# ─── account/event threshold & execution fields ──────────────────────────────
+
+def test_account_backward_compat_defaults_new_fields_to_none():
+    raw = json.dumps({"accounts": [{"id": "x", "name": "X", "type": "chequing",
+                                    "owner": "A", "balance": 0.0,
+                                    "interest_rate": 0.0, "notes": ""}]})
+    acct = json_to_blueprint(raw)["accounts"][0]
+    assert acct.target_floor is None
+    assert acct.sweep_ceiling is None
+    assert acct.sweep_role is None
+    assert acct.statement_close_date is None
+    assert acct.payment_due_date is None
+
+def test_event_backward_compat_defaults_new_fields():
+    raw = json.dumps({"events": [{"id": "e1", "name": "E", "event_type": "outflow",
+                                  "amount": 100, "from_account_id": "chq_a",
+                                  "to_account_id": None, "frequency": "monthly",
+                                  "anchor_date": "2026-01-01"}]})
+    ev = json_to_blueprint(raw)["events"][0]
+    assert ev.execution == "auto"
+
+def test_account_sweep_fields_roundtrip_on_chequing():
+    ns = _make_state()
+    ns.accounts[0].target_floor = 500.0
+    ns.accounts[0].sweep_ceiling = 2500.0
+    ns.accounts[0].sweep_role = "buffer"
+    result = json_to_blueprint(blueprint_to_json(ns))
+    a = result["accounts"][0]
+    assert a.target_floor == 500.0
+    assert a.sweep_ceiling == 2500.0
+    assert a.sweep_role == "buffer"
+
+def test_account_date_fields_roundtrip_on_debt():
+    ns = _make_state()
+    ns.accounts = [Account("cc1", "Credit Card", "debt", "A",
+                            statement_close_date="2026-08-15", payment_due_date="2026-09-05")]
+    result = json_to_blueprint(blueprint_to_json(ns))
+    a = result["accounts"][0]
+    assert a.statement_close_date == "2026-08-15"
+    assert a.payment_due_date == "2026-09-05"
+
+def test_account_export_omits_fields_irrelevant_to_type():
+    ns = _make_state()  # chq_a is chequing
+    ns.accounts[0].statement_close_date = "2026-08-15"  # not applicable to chequing
+    raw = json.loads(blueprint_to_json(ns))
+    a = raw["accounts"][0]
+    assert "statement_close_date" not in a
+    assert "payment_due_date" not in a
+    assert "interest_rate" not in a
+    assert "market_value" not in a
+    assert "target_floor" in a  # sweep fields ARE relevant to chequing
+
+def test_account_import_ignores_legacy_notes_key():
+    raw = json.dumps({"accounts": [{"id": "x", "name": "X", "type": "chequing",
+                                    "owner": "A", "balance": 0.0, "notes": "old field"}]})
+    result = json_to_blueprint(raw)
+    assert result["accounts"][0].id == "x"
+
+def test_event_new_fields_roundtrip():
+    ns = _make_state()
+    ns.events[0].execution = "manual"
+    result = json_to_blueprint(blueprint_to_json(ns))
+    e = result["events"][0]
+    assert e.execution == "manual"
+
+def test_invalid_sweep_role_raises():
+    import pytest
+    raw = json.dumps({"accounts": [{"id": "x", "name": "X", "type": "chequing",
+                                    "owner": "A", "sweep_role": "not_a_role"}]})
+    with pytest.raises(ValueError, match="sweep_role"):
+        json_to_blueprint(raw)
+
+def test_non_numeric_target_floor_raises():
+    import pytest
+    raw = json.dumps({"accounts": [{"id": "x", "name": "X", "type": "chequing",
+                                    "owner": "A", "target_floor": "lots"}]})
+    with pytest.raises(ValueError, match="target_floor"):
+        json_to_blueprint(raw)
+
+def test_invalid_execution_raises():
+    import pytest
+    raw = json.dumps({"events": [{"id": "e1", "name": "E", "event_type": "outflow",
+                                  "amount": 100, "from_account_id": "chq_a",
+                                  "to_account_id": None, "frequency": "monthly",
+                                  "anchor_date": "2026-01-01", "execution": "sometimes"}]})
+    with pytest.raises(ValueError, match="execution"):
+        json_to_blueprint(raw)
+
+def test_invalid_weekend_shift_raises():
+    import pytest
+    raw = json.dumps({"events": [{"id": "e1", "name": "E", "event_type": "outflow",
+                                  "amount": 100, "from_account_id": "chq_a",
+                                  "to_account_id": None, "frequency": "monthly",
+                                  "anchor_date": "2026-01-01", "weekend_shift": "whenever"}]})
+    with pytest.raises(ValueError, match="weekend_shift"):
+        json_to_blueprint(raw)
+
+def test_invalid_statement_close_date_raises():
+    import pytest
+    raw = json.dumps({"accounts": [{"id": "x", "name": "X", "type": "debt",
+                                    "owner": "A", "statement_close_date": "not-a-date"}]})
+    with pytest.raises(ValueError, match="statement_close_date"):
+        json_to_blueprint(raw)
 
 
 # ─── get_occurrences: boundary conditions ────────────────────────────────────

@@ -3,62 +3,35 @@
 import json
 import uuid
 import calendar
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from datetime import date, timedelta
 from typing import Optional, List
 
 import pandas as pd
 
-from payday_planner.models import Member, Account, Event, Goal
+from payday_planner.models import Member, Account, Event
 
 
 # ─── SERIALIZATION ────────────────────────────────────────────────────────────
 
-def _compute_summary(accounts: List[Account], events: List[Event], goals: List[Goal]) -> dict:
-    """Compute snapshot metrics embedded in the exported blueprint."""
-    bw = 12 / 26  # biweekly-to-monthly conversion factor
+# Every account keeps the core identity/balance fields; which of the type-specific
+# fields also get exported depends on account type, so debt accounts don't carry
+# sweep thresholds, chequing accounts don't carry statement dates, etc.
+_ACCOUNT_CORE_FIELDS = ["id", "name", "type", "owner", "balance"]
+_ACCOUNT_TYPE_FIELDS = {
+    "chequing":   ["target_floor", "sweep_ceiling", "sweep_role"],
+    "savings":    ["interest_rate", "target_floor", "sweep_ceiling", "sweep_role"],
+    "investment": ["target_floor", "sweep_ceiling", "sweep_role"],
+    "debt":       ["statement_close_date", "payment_due_date"],
+    "liability":  ["interest_rate", "market_value", "statement_close_date", "payment_due_date"],
+}
+_ACCOUNT_FIELD_NAMES = {f.name for f in fields(Account)}
 
-    # ── Net worth ──────────────────────────────────────────────────────────────
-    liquid      = sum(a.balance for a in accounts if a.type in ("chequing", "savings", "investment"))
-    debt        = sum(a.balance for a in accounts if a.type == "debt")
-    re_equity   = sum(a.market_value - a.balance for a in accounts
-                      if a.type == "liability" and a.market_value > 0)
-    naked_liab  = sum(a.balance for a in accounts
-                      if a.type == "liability" and a.market_value == 0)
-    net_worth   = liquid - debt + re_equity - naked_liab
 
-    # ── Biweekly cashflow (money in/out of the household — transfers are internal)
-    active = [e for e in events if e.active and e.frequency != "one-time"]
-    mo_in  = sum(e.amount * _monthly_rate(e.frequency) for e in active if e.event_type == "inflow")
-    mo_out = sum(e.amount * _monthly_rate(e.frequency) for e in active if e.event_type == "outflow")
-    bw_in  = round(mo_in  * bw, 2)
-    bw_out = round(mo_out * bw, 2)
-
-    # ── Guilt-free buffers ────────────────────────────────────────────────────
-    buffers = guilt_free_buffers(accounts, events)
-    gf_section = {}
-    for owner, (avg_mo, safe_bw) in buffers.items():
-        gf_section[owner] = {
-            "avg_monthly":    round(avg_mo,  2),
-            "safe_biweekly":  round(safe_bw, 2),
-        }
-
-    return {
-        "generated_at":      date.today().isoformat(),
-        "net_worth":         round(net_worth, 2),
-        "liquid_assets":     round(liquid,    2),
-        "total_debt":        round(debt,      2),
-        "real_estate_equity": round(re_equity, 2),
-        "biweekly_cashflow": {
-            "inflow":  bw_in,
-            "outflow": bw_out,
-            "net":     round(bw_in - bw_out, 2),
-            "monthly_inflow":  round(mo_in,  2),
-            "monthly_outflow": round(mo_out, 2),
-            "monthly_net":     round(mo_in - mo_out, 2),
-        },
-        "guilt_free_buffers": gf_section,
-    }
+def _account_to_dict(a: Account) -> dict:
+    d = asdict(a)
+    keep = _ACCOUNT_CORE_FIELDS + _ACCOUNT_TYPE_FIELDS.get(a.type, [])
+    return {k: d[k] for k in keep}
 
 
 def _event_to_dict(e: Event) -> dict:
@@ -72,17 +45,18 @@ def _event_to_dict(e: Event) -> dict:
 def blueprint_to_json(ss) -> str:
     return json.dumps({
         "members":  [asdict(m) for m in ss.members],
-        "accounts": [asdict(a) for a in ss.accounts],
+        "accounts": [_account_to_dict(a) for a in ss.accounts],
         "events":   [_event_to_dict(e) for e in ss.events],
-        "goals":    [asdict(g) for g in ss.goals],
-        "summary":  _compute_summary(ss.accounts, ss.events, ss.goals),
     }, indent=2)
 
 
-_ACCOUNT_TYPES  = {"chequing", "savings", "debt", "investment", "liability"}
-_EVENT_TYPES    = {"inflow", "outflow", "transfer"}
-_FREQUENCIES    = {"one-time", "weekly", "biweekly", "biweekly-offset", "monthly", "quarterly"}
-_MAX_BYTES      = 5 * 1024 * 1024  # 5 MB
+_ACCOUNT_TYPES   = {"chequing", "savings", "debt", "investment", "liability"}
+_EVENT_TYPES     = {"inflow", "outflow", "transfer"}
+_FREQUENCIES     = {"one-time", "weekly", "biweekly", "biweekly-offset", "monthly", "quarterly"}
+_SWEEP_ROLES     = {"buffer", "restricted"}
+_EXECUTION_TYPES = {"auto", "manual"}
+_WEEKEND_SHIFTS   = {"none", "previous_business_day", "next_business_day"}
+_MAX_BYTES       = 5 * 1024 * 1024  # 5 MB
 
 
 def _require(obj: dict, field: str, kind, label: str):
@@ -91,6 +65,18 @@ def _require(obj: dict, field: str, kind, label: str):
     if not isinstance(obj[field], kind):
         type_name = " or ".join(k.__name__ for k in kind) if isinstance(kind, tuple) else kind.__name__
         raise ValueError(f"{label}: '{field}' must be {type_name}, got {type(obj[field]).__name__}")
+
+
+def _require_optional_number(obj: dict, field: str, label: str):
+    val = obj.get(field)
+    if val is not None and not isinstance(val, (int, float)):
+        raise ValueError(f"{label}: '{field}' must be a number or null")
+
+
+def _require_optional_enum(obj: dict, field: str, allowed: set, label: str):
+    val = obj.get(field)
+    if val is not None and val not in allowed:
+        raise ValueError(f"{label}: invalid {field} {val!r}, must be one of {sorted(allowed)}")
 
 
 def _require_isodate(obj: dict, field: str, label: str, required: bool = True):
@@ -127,6 +113,11 @@ def _validate_blueprint(data: dict):
         for num_field in ("balance", "interest_rate", "market_value"):
             if num_field in a and not isinstance(a[num_field], (int, float)):
                 raise ValueError(f"{lbl}: '{num_field}' must be a number")
+        for num_field in ("target_floor", "sweep_ceiling"):
+            _require_optional_number(a, num_field, lbl)
+        _require_optional_enum(a, "sweep_role", _SWEEP_ROLES, lbl)
+        _require_isodate(a, "statement_close_date", lbl, required=False)
+        _require_isodate(a, "payment_due_date",     lbl, required=False)
 
     for i, e in enumerate(data.get("events", [])):
         lbl = f"events[{i}] ({e.get('name', '?')})"
@@ -143,14 +134,8 @@ def _validate_blueprint(data: dict):
             raise ValueError(f"{lbl}: 'amount' must be >= 0")
         _require_isodate(e, "anchor_date", lbl, required=True)
         _require_isodate(e, "end_date",    lbl, required=False)
-
-    for i, g in enumerate(data.get("goals", [])):
-        lbl = f"goals[{i}] ({g.get('name', '?')})"
-        _require(g, "id",             str,           lbl)
-        _require(g, "name",           str,           lbl)
-        _require(g, "account_id",     str,           lbl)
-        _require(g, "target_balance", (int, float),  lbl)
-        _require_isodate(g, "target_date", lbl, required=True)
+        _require_optional_enum(e, "execution",     _EXECUTION_TYPES, lbl)
+        _require_optional_enum(e, "weekend_shift", _WEEKEND_SHIFTS,  lbl)
 
 
 def json_to_blueprint(raw: str) -> dict:
@@ -160,10 +145,10 @@ def json_to_blueprint(raw: str) -> dict:
     _validate_blueprint(data)
     return {
         "members":  [Member(**m)         for m in data.get("members", [])],
-        "accounts": [Account(**a)        for a in data.get("accounts", [])],
+        "accounts": [Account(**{k: v for k, v in a.items() if k in _ACCOUNT_FIELD_NAMES})
+                     for a in data.get("accounts", [])],
         "events":   [Event(**{k: v for k, v in e.items() if k != "next_occurrence"})
                      for e in data.get("events", [])],
-        "goals":    [Goal(**g)           for g in data.get("goals", [])],
     }
 
 
@@ -186,46 +171,25 @@ def _default_accounts():
 def _default_events():
     return [
         Event(str(uuid.uuid4()), "A Paycheque", "inflow", 2500,
-              None, "chq_a", "biweekly", "2026-01-02",
-              tags=["income"]),
+              None, "chq_a", "biweekly", "2026-01-02"),
         Event(str(uuid.uuid4()), "B Paycheque", "inflow", 2000,
-              None, "chq_b", "biweekly", "2026-01-09",
-              tags=["income"]),
+              None, "chq_b", "biweekly", "2026-01-09"),
         Event(str(uuid.uuid4()), "A Personal Bills", "outflow", 400,
-              "chq_a", None, "monthly", "2026-01-01",
-              tags=["bills"]),
+              "chq_a", None, "monthly", "2026-01-01"),
         Event(str(uuid.uuid4()), "B Personal Bills", "outflow", 300,
-              "chq_b", None, "monthly", "2026-01-01",
-              tags=["bills"]),
+              "chq_b", None, "monthly", "2026-01-01"),
         Event(str(uuid.uuid4()), "Installment Payment", "outflow", 200,
-              "chq_a", None, "monthly", "2026-01-01", end_date="2026-06-30",
-              tags=["temporary"]),
+              "chq_a", None, "monthly", "2026-01-01", end_date="2026-06-30"),
         Event(str(uuid.uuid4()), "A → Joint Hub", "transfer", 1500,
-              "chq_a", "hub", "biweekly", "2026-01-02",
-              tags=["hub"]),
+              "chq_a", "hub", "biweekly", "2026-01-02"),
         Event(str(uuid.uuid4()), "B → Joint Hub", "transfer", 1200,
-              "chq_b", "hub", "biweekly", "2026-01-09",
-              tags=["hub"]),
+              "chq_b", "hub", "biweekly", "2026-01-09"),
         Event(str(uuid.uuid4()), "Mortgage", "outflow", 1800,
-              "hub", "mtg", "monthly", "2026-01-01",
-              tags=["housing"]),
+              "hub", "mtg", "monthly", "2026-01-01"),
         Event(str(uuid.uuid4()), "Shared Bills", "outflow", 500,
-              "hub", None, "monthly", "2026-01-01",
-              tags=["bills"]),
+              "hub", None, "monthly", "2026-01-01"),
         Event(str(uuid.uuid4()), "LOC Payment", "transfer", 500,
-              "hub", "loc", "biweekly", "2026-01-02", end_date="2026-12-31",
-              tags=["debt", "priority"]),
-    ]
-
-
-def _default_goals():
-    return [
-        Goal(str(uuid.uuid4()), "Emergency Fund",  "sav1", 15000, "2026-12-31",
-             "3–6 months of expenses"),
-        Goal(str(uuid.uuid4()), "Pay Off LOC",     "loc",  0,     "2026-12-31",
-             "Clear line of credit"),
-        Goal(str(uuid.uuid4()), "Goals Fund",      "sav2", 5000,  "2027-06-30",
-             "Savings for upcoming goals"),
+              "hub", "loc", "biweekly", "2026-01-02", end_date="2026-12-31"),
     ]
 
 
@@ -249,54 +213,75 @@ def _advance_quarter(d: date) -> date:
     return d.replace(year=y, month=m, day=min(d.day, last))
 
 
+def _apply_weekend_shift(d: date, rule: str) -> date:
+    """Shift a date off a weekend per `rule`. Saturday=5, Sunday=6."""
+    if rule == "previous_business_day":
+        if d.weekday() == 5:
+            return d - timedelta(days=1)
+        if d.weekday() == 6:
+            return d - timedelta(days=2)
+    elif rule == "next_business_day":
+        if d.weekday() == 5:
+            return d + timedelta(days=2)
+        if d.weekday() == 6:
+            return d + timedelta(days=1)
+    return d
+
+
 def get_occurrences(event: Event, start: date, end: date) -> List[date]:
     if not event.active:
         return []
     anchor  = date.fromisoformat(event.anchor_date)
     end_cap = date.fromisoformat(event.end_date) if event.end_date else None
+    shift   = lambda d: _apply_weekend_shift(d, event.weekend_shift)
 
     def ok(d: date) -> bool:
         return start <= d <= end and (end_cap is None or d <= end_cap)
 
     if event.frequency == "one-time":
-        return [anchor] if ok(anchor) else []
+        shifted = shift(anchor)
+        return [shifted] if ok(shifted) else []
 
     results = []
 
     if event.frequency in ("biweekly", "biweekly-offset"):
         cur = anchor
-        while cur < start:
+        while shift(cur) < start:
             cur += timedelta(days=14)
-        while cur <= end:
-            if ok(cur):
-                results.append(cur)
+        while shift(cur) <= end:
+            shifted = shift(cur)
+            if ok(shifted):
+                results.append(shifted)
             cur += timedelta(days=14)
 
     elif event.frequency == "weekly":
         cur = anchor
-        while cur < start:
+        while shift(cur) < start:
             cur += timedelta(days=7)
-        while cur <= end:
-            if ok(cur):
-                results.append(cur)
+        while shift(cur) <= end:
+            shifted = shift(cur)
+            if ok(shifted):
+                results.append(shifted)
             cur += timedelta(days=7)
 
     elif event.frequency == "monthly":
         cur = anchor
-        while cur < start:
+        while shift(cur) < start:
             cur = _advance_month(cur)
-        while cur <= end:
-            if ok(cur):
-                results.append(cur)
+        while shift(cur) <= end:
+            shifted = shift(cur)
+            if ok(shifted):
+                results.append(shifted)
             cur = _advance_month(cur)
 
     elif event.frequency == "quarterly":
         cur = anchor
-        while cur < start:
+        while shift(cur) < start:
             cur = _advance_quarter(cur)
-        while cur <= end:
-            if ok(cur):
-                results.append(cur)
+        while shift(cur) <= end:
+            shifted = shift(cur)
+            if ok(shifted):
+                results.append(shifted)
             cur = _advance_quarter(cur)
 
     return results
@@ -308,30 +293,32 @@ def next_occurrence(event: Event, from_date: date) -> Optional[str]:
         return None
     anchor  = date.fromisoformat(event.anchor_date)
     end_cap = date.fromisoformat(event.end_date) if event.end_date else None
+    shift   = lambda d: _apply_weekend_shift(d, event.weekend_shift)
 
     cur = anchor
     if event.frequency == "one-time":
         pass
     elif event.frequency in ("biweekly", "biweekly-offset"):
-        while cur < from_date:
+        while shift(cur) < from_date:
             cur += timedelta(days=14)
     elif event.frequency == "weekly":
-        while cur < from_date:
+        while shift(cur) < from_date:
             cur += timedelta(days=7)
     elif event.frequency == "monthly":
-        while cur < from_date:
+        while shift(cur) < from_date:
             cur = _advance_month(cur)
     elif event.frequency == "quarterly":
-        while cur < from_date:
+        while shift(cur) < from_date:
             cur = _advance_quarter(cur)
     else:
         return None
 
-    if cur < from_date:
+    shifted = shift(cur)
+    if shifted < from_date:
         return None
-    if end_cap is not None and cur > end_cap:
+    if end_cap is not None and shifted > end_cap:
         return None
-    return cur.isoformat()
+    return shifted.isoformat()
 
 
 def build_calendar(events: List[Event], start: date, end: date) -> List[dict]:
@@ -346,7 +333,6 @@ def build_calendar(events: List[Event], start: date, end: date) -> List[dict]:
                 "amount":          event.amount,
                 "from_account_id": event.from_account_id,
                 "to_account_id":   event.to_account_id,
-                "tags":            event.tags,
                 "notes":           event.notes,
             })
     rows.sort(key=lambda x: x["date"])

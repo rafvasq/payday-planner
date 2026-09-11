@@ -13,7 +13,7 @@ import pandas as pd
 from payday_planner.models import Member, Account, Event
 from payday_planner.engine import (
     blueprint_to_json, json_to_blueprint,
-    _default_accounts, _default_events, _default_goals,
+    _default_accounts, _default_events,
     build_calendar,
     _monthly_rate, guilt_free_buffers,
 )
@@ -46,7 +46,6 @@ def _apply_blueprint(loaded: dict):
     st.session_state.members  = loaded["members"]
     st.session_state.accounts = loaded["accounts"]
     st.session_state.events   = loaded["events"]
-    st.session_state.goals    = loaded["goals"]
 
 
 def init_state():
@@ -55,7 +54,6 @@ def init_state():
         st.session_state.members             = [Member("A", "Person A"), Member("B", "Person B")]
         st.session_state.accounts            = _default_accounts()
         st.session_state.events              = _default_events()
-        st.session_state.goals               = _default_goals()
         st.session_state.page                = "Dashboard"
 
         # Auto-load personal blueprint
@@ -104,10 +102,9 @@ def _render_cal_row(row: dict):
     else:
         direction, color, sign = f"**{from_name}** → **{to_name}**", "blue", "→"
 
-    tags_str = " ".join(f"`{tag}`" for tag in (row.get("tags") or []))
     st.markdown(
         f":{color}[{sign} ${row['amount']:,.0f}]&nbsp; {row['name']} "
-        f"&nbsp; {direction} &nbsp; {tags_str}"
+        f"&nbsp; {direction}"
     )
 
 
@@ -171,32 +168,6 @@ def page_dashboard():
 
     st.divider()
 
-    # Goals
-    st.caption("GOALS")
-    for goal in st.session_state.goals:
-        acct = get_account(goal.account_id)
-        if not acct:
-            continue
-        current   = acct.balance
-        target    = goal.target_balance
-        days_left = (date.fromisoformat(goal.target_date) - date.today()).days
-
-        if target == 0:
-            progress   = 0.0
-            stats_text = f"${current:,.0f} → $0  ·  {days_left}d left"
-        else:
-            progress   = min(current / target, 1.0)
-            stats_text = f"${current:,.0f} / ${target:,.0f}  ·  {int(progress * 100)}%  ·  {days_left}d left"
-
-        gl, gr = st.columns([3, 2])
-        gl.markdown(f"**{goal.name}**")
-        gr.markdown(f"<p style='text-align:right;font-size:0.85em;color:#8B90A0;margin:0'>{stats_text}</p>", unsafe_allow_html=True)
-        st.progress(progress)
-        if goal.notes:
-            st.caption(goal.notes)
-
-    st.divider()
-
     # Account balances
     st.subheader("Account Balances")
     for acct_type, label in ACCT_TYPE_LABELS.items():
@@ -216,7 +187,7 @@ def page_dashboard():
     cal = build_calendar(st.session_state.events, today, today + timedelta(days=14))
     for dt, grp in groupby(cal, key=lambda x: x["date"]):
         items     = list(grp)
-        is_payday = any("income" in (r.get("tags") or []) for r in items)
+        is_payday = any(r["type"] == "inflow" for r in items)
         with st.expander(dt.strftime("%a %b %d") + (" 💰" if is_payday else ""), expanded=is_payday):
             for row in items:
                 _render_cal_row(row)
@@ -226,6 +197,8 @@ def page_dashboard():
 
 ACCOUNT_TYPES    = ["chequing", "savings", "debt", "investment", "liability"]
 OWNERS           = ["A", "B", "Joint"]
+SWEEP_ROLE_OPTIONS = ["— Unspecified —", "buffer", "restricted"]
+RATE_BEARING_TYPES = {"savings", "investment", "liability"}  # chequing/debt: rate doesn't change the strategy
 ACCT_TYPE_LABELS = {
     "chequing": "Chequing", "savings": "Savings",
     "investment": "Investments", "debt": "Debt", "liability": "Liabilities",
@@ -237,6 +210,43 @@ ACCT_TYPE_COLOR = {
     "debt":       "#E45649",
     "liability":  "#A626A4",
 }
+
+
+def _account_extra_fields(acct: Optional[Account] = None) -> dict:
+    c1, c2, c3, c4 = st.columns(4)
+    has_floor = c1.checkbox("Set Target Floor?", value=(acct.target_floor is not None) if acct else False)
+    target_floor = c2.number_input(
+        "Target Floor", value=float(acct.target_floor) if (acct and acct.target_floor is not None) else 0.0,
+        step=50.0, help="Minimum balance to keep in this account")
+    has_ceiling = c3.checkbox("Set Sweep Ceiling?", value=(acct.sweep_ceiling is not None) if acct else False)
+    sweep_ceiling = c4.number_input(
+        "Sweep Ceiling", value=float(acct.sweep_ceiling) if (acct and acct.sweep_ceiling is not None) else 0.0,
+        step=100.0, help="Balance above which surplus is safe to sweep out")
+
+    c5, c6, c7 = st.columns(3)
+    role_idx = SWEEP_ROLE_OPTIONS.index(acct.sweep_role) if (acct and acct.sweep_role in SWEEP_ROLE_OPTIONS) else 0
+    sweep_role = c5.selectbox("Sweep Role", SWEEP_ROLE_OPTIONS, index=role_idx,
+                              help="buffer = ok to draw from in a pinch; restricted = never sweep")
+    has_close = c6.checkbox("Set Statement Close Date?", value=bool(acct and acct.statement_close_date))
+    close_date = c7.date_input(
+        "Statement Close Date",
+        value=date.fromisoformat(acct.statement_close_date) if (acct and acct.statement_close_date) else date.today(),
+        help="Debt accounts only")
+
+    c8, c9 = st.columns(2)
+    has_due = c8.checkbox("Set Payment Due Date?", value=bool(acct and acct.payment_due_date))
+    due_date = c9.date_input(
+        "Payment Due Date",
+        value=date.fromisoformat(acct.payment_due_date) if (acct and acct.payment_due_date) else date.today(),
+        help="Debt accounts only")
+
+    return dict(
+        target_floor=target_floor if has_floor else None,
+        sweep_ceiling=sweep_ceiling if has_ceiling else None,
+        sweep_role=None if sweep_role == SWEEP_ROLE_OPTIONS[0] else sweep_role,
+        statement_close_date=close_date.isoformat() if has_close else None,
+        payment_due_date=due_date.isoformat() if has_due else None,
+    )
 
 
 def page_accounts():
@@ -255,41 +265,54 @@ def page_accounts():
     st.divider()
 
     with st.expander("+ Add Account", expanded=False):
+        acct_type = st.selectbox("Type", ACCOUNT_TYPES, key="add_acct_type")
         with st.form("add_account"):
-            c1, c2, c3 = st.columns(3)
-            name      = c1.text_input("Name")
-            acct_type = c2.selectbox("Type",  ACCOUNT_TYPES)
-            owner     = c3.selectbox("Owner", OWNERS)
-            c4, c5, c6, c7 = st.columns(4)
-            balance      = c4.number_input("Balance",         value=0.0, step=100.0)
-            rate         = c5.number_input("Interest Rate %", value=0.0, step=0.1, min_value=0.0)
-            market_value = c6.number_input("Market Value",    value=0.0, step=1000.0, help="Liabilities only: estimated sale value of the property")
-            notes        = c7.text_input("Notes")
+            c1, c2 = st.columns(2)
+            name  = c1.text_input("Name")
+            owner = c2.selectbox("Owner", OWNERS)
+            balance = st.number_input("Balance", value=0.0, step=100.0)
+            rate = 0.0
+            if acct_type in RATE_BEARING_TYPES:
+                rate = st.number_input("Interest Rate %", value=0.0, step=0.1, min_value=0.0)
+            market_value = 0.0
+            if acct_type == "liability":
+                market_value = st.number_input("Market Value", value=0.0, step=1000.0,
+                                                help="Estimated sale value of the underlying asset")
+            extra = _account_extra_fields()
             if st.form_submit_button("Add") and name:
                 new_id = name.lower().replace(" ", "_") + "_" + str(uuid.uuid4())[:4]
-                st.session_state.accounts.append(Account(new_id, name, acct_type, owner, balance, rate, notes, market_value))
+                st.session_state.accounts.append(Account(new_id, name, acct_type, owner, balance, rate, market_value, **extra))
                 st.rerun()
 
     st.divider()
 
     for i, acct in enumerate(st.session_state.accounts):
         with st.expander(f"{acct.name}  ·  {acct.owner}  ·  ${acct.balance:,.2f}"):
+            acct_type = st.selectbox("Type", ACCOUNT_TYPES, index=ACCOUNT_TYPES.index(acct.type),
+                                      key=f"type_{acct.id}")
             with st.form(f"acct_{acct.id}"):
-                c1, c2, c3 = st.columns(3)
-                name      = c1.text_input("Name",  value=acct.name)
-                acct_type = c2.selectbox("Type",   ACCOUNT_TYPES, index=ACCOUNT_TYPES.index(acct.type))
-                owner     = c3.selectbox("Owner",  OWNERS,        index=OWNERS.index(acct.owner))
-                c4, c5, c6, c7 = st.columns(4)
-                balance      = c4.number_input("Balance",         value=float(acct.balance),       step=100.0)
-                rate         = c5.number_input("Interest Rate %", value=float(acct.interest_rate), step=0.1)
-                market_value = c6.number_input("Market Value",    value=float(acct.market_value),  step=1000.0, help="Liabilities only: estimated sale value of the property")
-                notes        = c7.text_input("Notes", value=acct.notes)
+                c1, c2 = st.columns(2)
+                name  = c1.text_input("Name",  value=acct.name)
+                owner = c2.selectbox("Owner",  OWNERS, index=OWNERS.index(acct.owner))
+                balance = st.number_input("Balance", value=float(acct.balance), step=100.0)
+                rate = 0.0
+                if acct_type in RATE_BEARING_TYPES:
+                    rate = st.number_input("Interest Rate %", value=float(acct.interest_rate), step=0.1)
+                market_value = 0.0
+                if acct_type == "liability":
+                    market_value = st.number_input("Market Value", value=float(acct.market_value), step=1000.0,
+                                                    help="Estimated sale value of the underlying asset")
+                extra = _account_extra_fields(acct)
                 sv, dl = st.columns([4, 1])
                 if sv.form_submit_button("Save"):
                     a = st.session_state.accounts[i]
                     a.name, a.type, a.owner = name, acct_type, owner
-                    a.balance, a.interest_rate, a.notes = balance, rate, notes
+                    a.balance, a.interest_rate = balance, rate
                     a.market_value = market_value
+                    a.target_floor, a.sweep_ceiling, a.sweep_role = (
+                        extra["target_floor"], extra["sweep_ceiling"], extra["sweep_role"])
+                    a.statement_close_date, a.payment_due_date = (
+                        extra["statement_close_date"], extra["payment_due_date"])
                     st.rerun()
                 if dl.form_submit_button("Delete"):
                     st.session_state.accounts.pop(i)
@@ -300,6 +323,8 @@ def page_accounts():
 
 FREQUENCIES  = ["one-time", "weekly", "biweekly", "biweekly-offset", "monthly", "quarterly"]
 EVENT_TYPES  = ["inflow", "outflow", "transfer"]
+EXECUTION_TYPES = ["auto", "manual"]
+WEEKEND_SHIFTS  = ["none", "previous_business_day", "next_business_day"]
 
 
 def _event_fields(prefix: str, ev: Optional[Event] = None) -> dict:
@@ -318,13 +343,21 @@ def _event_fields(prefix: str, ev: Optional[Event] = None) -> dict:
     has_end   = c11.checkbox("Has End Date?", value=bool(ev.end_date) if ev else False)
     end_val   = c12.date_input("End Date",
                                 value=date.fromisoformat(ev.end_date) if (ev and ev.end_date) else date.today())
-    tags_raw  = st.text_input("Tags (comma-separated)", value=", ".join(ev.tags) if ev else "")
     notes     = st.text_input("Notes", value=ev.notes if ev else "")
     active    = st.checkbox("Active", value=ev.active if ev else True) if ev else True
+
+    c13, c14 = st.columns(2)
+    execution = c13.selectbox(
+        "Execution", EXECUTION_TYPES, index=EXECUTION_TYPES.index(ev.execution) if ev else 0,
+        help="auto = the bank moves this on its own; manual = you make this transfer yourself")
+    weekend_shift = c14.selectbox(
+        "Weekend Shift", WEEKEND_SHIFTS, index=WEEKEND_SHIFTS.index(ev.weekend_shift) if ev else 0,
+        help="How this date moves if the cycle lands on a Saturday/Sunday")
+
     return dict(name=name, event_type=event_type,
                 amount=amount, from_id=from_id, to_id=to_id,
                 frequency=frequency, anchor=anchor, has_end=has_end, end_val=end_val,
-                tags_raw=tags_raw, notes=notes, active=active)
+                notes=notes, active=active, execution=execution, weekend_shift=weekend_shift)
 
 
 def page_events():
@@ -340,8 +373,8 @@ def page_events():
                     from_account_id=f["from_id"], to_account_id=f["to_id"],
                     frequency=f["frequency"], anchor_date=f["anchor"].isoformat(),
                     end_date=f["end_val"].isoformat() if f["has_end"] else None,
-                    tags=[t.strip() for t in f["tags_raw"].split(",") if t.strip()],
-                    notes=f["notes"],
+                    notes=f["notes"], execution=f["execution"],
+                    weekend_shift=f["weekend_shift"],
                 ))
                 st.rerun()
 
@@ -361,7 +394,8 @@ def page_events():
         real_idx = st.session_state.events.index(event)
         end_str  = f" → {event.end_date}" if event.end_date else ""
         flag     = "✓" if event.active else "✗"
-        label    = f"{flag} {event.name}  ·  ${event.amount:,.0f}  ·  {event.frequency}{end_str}"
+        exec_tag = "  ✋ manual" if event.execution == "manual" else ""
+        label    = f"{flag} {event.name}  ·  ${event.amount:,.0f}  ·  {event.frequency}{end_str}{exec_tag}"
 
         with st.expander(label):
             with st.form(f"evt_{event.id}"):
@@ -375,8 +409,9 @@ def page_events():
                     e.frequency   = f["frequency"]
                     e.anchor_date = f["anchor"].isoformat()
                     e.end_date    = f["end_val"].isoformat() if f["has_end"] else None
-                    e.tags        = [t.strip() for t in f["tags_raw"].split(",") if t.strip()]
                     e.notes, e.active = f["notes"], f["active"]
+                    e.execution = f["execution"]
+                    e.weekend_shift = f["weekend_shift"]
                     st.rerun()
                 if dl.form_submit_button("Delete"):
                     st.session_state.events.pop(real_idx)
@@ -404,7 +439,7 @@ def page_timeline():
 
     for dt, grp in groupby(cal, key=lambda x: x["date"]):
         items     = list(grp)
-        is_payday = any("income" in (r.get("tags") or []) for r in items)
+        is_payday = any(r["type"] == "inflow" for r in items)
         with st.expander(dt.strftime("%a %b %d") + (" 💰" if is_payday else ""), expanded=is_payday):
             for row in items:
                 _render_cal_row(row)
@@ -506,16 +541,13 @@ def page_export():
     st.divider()
 
     st.subheader("CSV Export")
-    c1, c2, c3 = st.columns(3)
+    c1, c2 = st.columns(2)
     c1.download_button("accounts.csv",
                        data=pd.DataFrame([asdict(a) for a in st.session_state.accounts]).to_csv(index=False),
                        file_name="accounts.csv", mime="text/csv")
     c2.download_button("events.csv",
                        data=pd.DataFrame([asdict(e) for e in st.session_state.events]).to_csv(index=False),
                        file_name="events.csv", mime="text/csv")
-    c3.download_button("goals.csv",
-                       data=pd.DataFrame([asdict(g) for g in st.session_state.goals]).to_csv(index=False),
-                       file_name="goals.csv", mime="text/csv")
 
     st.divider()
 
