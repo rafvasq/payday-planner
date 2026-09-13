@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { BANK_PROFILES, parseCsvWithProfile, aggregateTransactions, cleanMerchantName } from '../csvParser';
+import { parseCsvWithProfile, aggregateTransactions, cleanMerchantName } from '../csvParser';
+import { BANK_PROFILES } from '../bankProfiles';
 
 const AMEX_CSV = `Date,Date Processed,Description,Amount
 12 Sep 2026,12 Sep 2026,METROPOLIS 185          Cityville,16.27
@@ -102,9 +103,23 @@ describe('CSV Parsing & Aggregation', () => {
     const profile = BANK_PROFILES.find(p => p.id === 'tangerine')!;
     const transactions = parseCsvWithProfile(TANGERINE_CSV, profile);
     
-    // 2 payments, 1 purchase
+    // 2 payments, 1 purchase. Payments should be filtered by default.
     expect(transactions.length).toBe(1);
     expect(transactions[0].amount).toBe(31.49);
     expect(transactions[0].merchant).toBe('Amazon.ca'); // ID and location stripped
+  });
+
+  it('includes payments when configured via options', () => {
+    const profile = BANK_PROFILES.find(p => p.id === 'tangerine')!;
+    const transactions = parseCsvWithProfile(TANGERINE_CSV, profile, { includePayments: true });
+    
+    // All 3 rows should be parsed
+    expect(transactions.length).toBe(3);
+    
+    // First payment should be negative since it's an inflow (CREDIT in Tangerine becomes negative after polarity inversion because purchases are positive)
+    expect(transactions[0].amount).toBe(-31.49); 
+    
+    // Purchase should be positive
+    expect(transactions[1].amount).toBe(31.49);
   });
 });

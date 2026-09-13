@@ -1,15 +1,15 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { 
-  BANK_PROFILES, 
   parseCsvWithProfile, 
   aggregateTransactions, 
   autoDetectProfile,
-  ParsedTransaction, 
+  ParsedTransaction,
   BankProfile 
 } from '../core/csvParser';
+import { BANK_PROFILES } from '../core/bankProfiles';
 import Papa from 'papaparse';
-import { UploadCloud, Check, Copy, Calendar, AlertCircle, Info } from 'lucide-react';
+import { UploadCloud, Check, Copy, Calendar, AlertCircle, Info, Settings2 } from 'lucide-react';
 import { format, startOfMonth } from 'date-fns';
 
 export const AnalysisTab: React.FC = () => {
@@ -21,6 +21,7 @@ export const AnalysisTab: React.FC = () => {
   const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [detectedLog, setDetectedLog] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [includePayments, setIncludePayments] = useState(false);
   
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,7 +76,7 @@ export const AnalysisTab: React.FC = () => {
           newLogs.push(`Using fallback ${selectedProfile.name} for ${file.name}`);
         }
 
-        const newTx = parseCsvWithProfile(text, activeProfile);
+        const newTx = parseCsvWithProfile(text, activeProfile, { includePayments });
         allTx.push(...newTx);
         processed++;
 
@@ -158,7 +159,26 @@ ${jsonStr}`;
               </select>
             </div>
             
-            <div className="flex-1 w-full">
+            <div className="w-full sm:w-64 space-y-1.5">
+              <label className="text-xs font-bold text-ink-700 uppercase tracking-wide flex items-center gap-1.5">
+                <Settings2 className="w-3.5 h-3.5" />
+                Parsing Options
+              </label>
+              <div className="w-full bg-ink-50 border border-ink-200 rounded-lg p-2.5 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="includePayments"
+                  checked={includePayments}
+                  onChange={(e) => setIncludePayments(e.target.checked)}
+                  className="w-4 h-4 text-brand-500 bg-white border-ink-300 rounded focus:ring-brand-500"
+                />
+                <label htmlFor="includePayments" className="text-sm text-ink-900 cursor-pointer select-none">
+                  Include Payments & Refunds
+                </label>
+              </div>
+            </div>
+            
+            <div className="flex-1 w-full mt-4">
               <input
                 type="file"
                 multiple
