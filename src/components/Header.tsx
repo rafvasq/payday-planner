@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePlannerStore } from '../store/usePlannerStore';
-import { Copy, Check, Zap, Download } from 'lucide-react';
+import { Copy, Check, Zap } from 'lucide-react';
+import { generateLlmPrompt } from '../core/prompt';
 
 export const Header: React.FC = () => {
   const { getBlueprintJson, setQuickCheckInOpen } = usePlannerStore();
@@ -9,7 +10,8 @@ export const Header: React.FC = () => {
   const handleCopyJson = async () => {
     try {
       const jsonStr = getBlueprintJson();
-      await navigator.clipboard.writeText(jsonStr);
+      const prompt = generateLlmPrompt(jsonStr);
+      await navigator.clipboard.writeText(prompt);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch (err) {
@@ -52,12 +54,12 @@ export const Header: React.FC = () => {
           {copied ? (
             <>
               <Check className="w-4 h-4 animate-bounce" />
-              <span>Copied Blueprint JSON!</span>
+              <span>Copied Prompt & JSON!</span>
             </>
           ) : (
             <>
               <Copy className="w-3.5 h-3.5" />
-              <span>Copy Blueprint JSON</span>
+              <span>Copy for LLM</span>
             </>
           )}
         </button>

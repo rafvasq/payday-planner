@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { X, Zap, Check, Copy } from 'lucide-react';
+import { generateLlmPrompt } from '../core/prompt';
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   chequing: 'Chequing',
@@ -23,6 +24,7 @@ export const QuickCheckInModal: React.FC = () => {
 
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [copied, setCopied] = useState(false);
+  const [llmContext, setLlmContext] = useState('');
 
   useEffect(() => {
     if (quickCheckInOpen) {
@@ -32,6 +34,7 @@ export const QuickCheckInModal: React.FC = () => {
       });
       setBalances(initial);
       setCopied(false);
+      setLlmContext('');
     }
   }, [quickCheckInOpen, accounts]);
 
@@ -49,7 +52,8 @@ export const QuickCheckInModal: React.FC = () => {
     quickUpdateBalances(balances);
     try {
       const jsonStr = getBlueprintJson();
-      await navigator.clipboard.writeText(jsonStr);
+      const prompt = generateLlmPrompt(jsonStr, llmContext);
+      await navigator.clipboard.writeText(prompt);
       setCopied(true);
       setTimeout(() => {
         setQuickCheckInOpen(false);
@@ -71,7 +75,7 @@ export const QuickCheckInModal: React.FC = () => {
                 Payday Quick Check-in
               </h2>
               <p className="text-xs text-ink-400">
-                Update today's balances across your accounts and copy JSON in 15 seconds.
+                Update balances, add context, and copy LLM prompt in seconds.
               </p>
             </div>
           </div>
@@ -118,6 +122,18 @@ export const QuickCheckInModal: React.FC = () => {
               </div>
             ))}
           </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-ink-900 flex items-center gap-2">
+              Additional Context for LLM <span className="text-[10px] uppercase font-bold text-ink-400 bg-ink-100 px-1.5 py-0.5 rounded">Optional</span>
+            </label>
+            <textarea
+              value={llmContext}
+              onChange={(e) => setLlmContext(e.target.value)}
+              placeholder="e.g. I have an unexpected $500 car repair bill this week..."
+              className="w-full text-sm p-3 bg-white border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none h-20 transition-all placeholder:text-ink-300 shadow-inner"
+            />
+          </div>
         </div>
 
         <div className="px-6 py-4 border-t border-ink-200 flex flex-col sm:flex-row items-center justify-between gap-3 bg-ink-100/50 rounded-b-xl">
@@ -152,12 +168,12 @@ export const QuickCheckInModal: React.FC = () => {
               {copied ? (
                 <>
                   <Check className="w-4 h-4 animate-bounce" />
-                  <span>Saved & Copied to Clipboard!</span>
+                  <span>Saved & Copied Prompt!</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-4 h-4" />
-                  <span>Save Balances & Copy JSON</span>
+                  <span>Save Balances & Copy Prompt</span>
                 </>
               )}
             </button>

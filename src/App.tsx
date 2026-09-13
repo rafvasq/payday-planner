@@ -8,6 +8,7 @@ import { EventsManager } from './components/EventsManager';
 import { TimelineChecklist } from './components/TimelineChecklist';
 import { FlowDiagram } from './components/FlowDiagram';
 import { ExportImport } from './components/ExportImport';
+import { AnalysisTab } from './components/AnalysisTab';
 import {
   LayoutDashboard,
   Building2,
@@ -15,12 +16,14 @@ import {
   CalendarDays,
   GitFork,
   Download,
+  BarChart3,
 } from 'lucide-react';
 
 const TABS = [
   { id: 'Dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'Accounts', label: 'Accounts', icon: Building2 },
   { id: 'Events', label: 'Events', icon: Calendar },
+  { id: 'Analysis', label: 'Analysis', icon: BarChart3 },
   { id: 'Timeline', label: 'Timeline', icon: CalendarDays },
   { id: 'Flow Diagram', label: 'Flow Diagram', icon: GitFork },
   { id: 'Export', label: 'Export & Import', icon: Download },
@@ -95,6 +98,7 @@ export const App: React.FC = () => {
           {activeTab === 'Dashboard' && <Dashboard />}
           {activeTab === 'Accounts' && <AccountsManager />}
           {activeTab === 'Events' && <EventsManager />}
+          {activeTab === 'Analysis' && <AnalysisTab />}
           {activeTab === 'Timeline' && <TimelineChecklist />}
           {activeTab === 'Flow Diagram' && <FlowDiagram />}
           {activeTab === 'Export' && <ExportImport />}
