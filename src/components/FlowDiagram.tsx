@@ -23,12 +23,16 @@ export const FlowDiagram: React.FC = () => {
 
     const lines: string[] = [`graph ${layoutDir}`];
 
-    // Separate accounts by ownership
-    const rName = memberNameMap['A'] || 'Member A';
-    const jName = memberNameMap['B'] || 'Member B';
+    // Dynamically grab first and second member IDs
+    const member1Id = members[0]?.id || 'A';
+    const member2Id = members[1]?.id || 'B';
 
-    const rAccts = accounts.filter((a) => a.owner === 'A');
-    const jAccts = accounts.filter((a) => a.owner === 'B');
+    // Separate accounts by ownership
+    const rName = memberNameMap[member1Id] || 'Member 1';
+    const jName = memberNameMap[member2Id] || 'Member 2';
+
+    const rAccts = accounts.filter((a) => a.owner === member1Id);
+    const jAccts = accounts.filter((a) => a.owner === member2Id);
     const jointAccts = accounts.filter(
       (a) => a.owner === 'Joint' || a.owner === 'Joint/Both'
     );
