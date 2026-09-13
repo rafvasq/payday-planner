@@ -32,23 +32,6 @@ const TABS = [
 export const App: React.FC = () => {
   const { activeTab, setActiveTab, accounts, events } = usePlannerStore();
 
-  const liquid = accounts
-    .filter((a) => ['chequing', 'savings', 'investment'].includes(a.type))
-    .reduce((sum, a) => sum + a.balance, 0);
-
-  const reEquity = accounts
-    .filter((a) => a.type === 'liability' && (a.market_value || 0) > 0)
-    .reduce((sum, a) => sum + ((a.market_value || 0) - a.balance), 0);
-
-  const nakedLiab = accounts
-    .filter((a) => a.type === 'liability' && (a.market_value || 0) === 0)
-    .reduce((sum, a) => sum + a.balance, 0);
-
-  const debt = accounts
-    .filter((a) => a.type === 'debt')
-    .reduce((sum, a) => sum + a.balance, 0);
-
-  const netWorth = liquid + reEquity - nakedLiab - debt;
   const activeEventsCount = events.filter((e) => e.active).length;
 
   return (
@@ -79,18 +62,6 @@ export const App: React.FC = () => {
             })}
           </nav>
 
-          {/* Sidebar Financial Summary */}
-          <div className="bg-white border border-ink-200 rounded-xl p-3.5 shadow-2xs space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-400">
-              Net Worth
-            </span>
-            <div className="text-xl font-extrabold text-ink-900">
-              ${netWorth.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-            </div>
-            <div className="text-[11px] text-ink-400 font-medium">
-              {accounts.length} accounts · {activeEventsCount} active events
-            </div>
-          </div>
         </aside>
 
         {/* Main Content Area */}
