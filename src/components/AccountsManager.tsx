@@ -3,6 +3,17 @@ import { usePlannerStore } from '../store/usePlannerStore';
 import { Account, AccountType } from '../core/models';
 import { Plus, Trash2, Users, Building2, Wallet, CreditCard, PieChart } from 'lucide-react';
 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+
 const ACCOUNT_TYPES: AccountType[] = [
   'chequing',
   'savings',
@@ -84,189 +95,197 @@ export const AccountsManager: React.FC = () => {
     <div className="space-y-6">
       {/* Metric Summaries */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-xs flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 rounded-lg shrink-0">
-            <Wallet className="w-6 h-6 text-emerald-600" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-ink-400 uppercase tracking-wide">Liquid Assets</p>
-            <p className="text-xl font-bold text-ink-900">${totalLiquid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          </div>
-        </div>
+        <Card>
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg shrink-0">
+              <Wallet className="w-6 h-6 text-emerald-600 dark:text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Liquid Assets</p>
+              <p className="text-xl font-bold">${totalLiquid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+          </CardContent>
+        </Card>
         
-        <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-xs flex items-center gap-4">
-          <div className="p-3 bg-rose-50 rounded-lg shrink-0">
-            <CreditCard className="w-6 h-6 text-rose-600" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-ink-400 uppercase tracking-wide">Total Debt</p>
-            <p className="text-xl font-bold text-ink-900">${totalDebt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          </div>
-        </div>
+        <Card>
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-destructive/10 rounded-lg shrink-0">
+              <CreditCard className="w-6 h-6 text-destructive" />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Total Debt</p>
+              <p className="text-xl font-bold">${totalDebt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+          </CardContent>
+        </Card>
         
-        <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-xs flex items-center gap-4">
-          <div className="p-3 bg-brand-50 rounded-lg shrink-0">
-            <PieChart className="w-6 h-6 text-brand-600" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-ink-400 uppercase tracking-wide">Net Worth</p>
-            <p className="text-xl font-bold text-ink-900">${totalNetWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          </div>
-        </div>
+        <Card>
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-lg shrink-0">
+              <PieChart className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Net Worth</p>
+              <p className="text-xl font-bold">${totalNetWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Members Section */}
-      <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-xs space-y-3">
-        <div className="flex items-center gap-2">
-          <Users className="w-5 h-5 text-brand-500" />
-          <h2 className="text-base font-bold text-ink-900">Members</h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {members.map((m) => (
-            <div
-              key={m.id}
-              className="p-3 border border-ink-200 rounded-lg flex items-center justify-between gap-3 bg-ink-100/50"
-            >
-              <span className="text-xs font-bold text-ink-400">ID: {m.id}</span>
-              <input
-                type="text"
-                value={m.name}
-                onChange={(e) => updateMemberName(m.id, e.target.value)}
-                className="px-3 py-1.5 text-xs font-semibold text-ink-900 bg-white border border-ink-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-primary" />
+            <CardTitle className="text-base">Members</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {members.map((m) => (
+              <div
+                key={m.id}
+                className="p-3 border border-border rounded-md flex items-center justify-between gap-3 bg-muted/50"
+              >
+                <span className="text-xs font-bold text-muted-foreground">ID: {m.id}</span>
+                <Input
+                  type="text"
+                  value={m.name}
+                  onChange={(e) => updateMemberName(m.id, e.target.value)}
+                  className="w-full sm:w-[200px] h-8 text-xs font-semibold"
+                />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Add Account Panel */}
-      <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-xs">
-        <div className="flex items-center justify-between">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
           <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-brand-500" />
-            <h2 className="text-base font-bold text-ink-900">Accounts</h2>
+            <Building2 className="w-5 h-5 text-primary" />
+            <CardTitle className="text-base">Accounts</CardTitle>
           </div>
-          <button
+          <Button
+            size="sm"
             onClick={() => setAddOpen(!addOpen)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-brand-500 hover:bg-brand-600 rounded-lg transition-all shadow-xs"
           >
-            <Plus className="w-4 h-4" />
-            <span>{addOpen ? 'Cancel' : 'Add Account'}</span>
-          </button>
-        </div>
+            <Plus className="w-4 h-4 mr-1.5" />
+            {addOpen ? 'Cancel' : 'Add Account'}
+          </Button>
+        </CardHeader>
 
         {addOpen && (
-          <form onSubmit={handleAddSubmit} className="mt-4 pt-4 border-t border-ink-200 space-y-4">
-            {/* Same Add Form fields as before */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-ink-400 uppercase mb-1">
-                  Account Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newAcct.name || ''}
-                  onChange={(e) => setNewAcct({ ...newAcct, name: e.target.value })}
-                  placeholder="e.g. Chequing A"
-                  className="w-full px-3 py-1.5 text-xs font-semibold text-ink-900 bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-ink-400 uppercase mb-1">
-                  Type
-                </label>
-                <select
-                  value={newAcct.type}
-                  onChange={(e) => setNewAcct({ ...newAcct, type: e.target.value as AccountType })}
-                  className="w-full px-3 py-1.5 text-xs font-semibold text-ink-900 bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
-                >
-                  {ACCOUNT_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {ACCOUNT_TYPE_LABELS[t]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-ink-400 uppercase mb-1">
-                  Owner
-                </label>
-                <select
-                  value={newAcct.owner}
-                  onChange={(e) => setNewAcct({ ...newAcct, owner: e.target.value })}
-                  className="w-full px-3 py-1.5 text-xs font-semibold text-ink-900 bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
-                >
-                  {ownerOptions.map((o) => (
-                    <option key={o} value={o}>
-                      {o === 'Joint' ? 'Joint' : members.find((m) => m.id === o)?.name || o}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-ink-400 uppercase mb-1">
-                  Current Balance ($)
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={newAcct.balance ?? ''}
-                  onChange={(e) => setNewAcct({ ...newAcct, balance: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-1.5 text-xs font-semibold text-ink-900 bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
-                />
-              </div>
-
-              {['savings', 'investment', 'liability'].includes(newAcct.type || '') && (
-                <div>
-                  <label className="block text-[11px] font-bold text-ink-400 uppercase mb-1">
-                    Interest Rate (%)
+          <CardContent>
+            <form onSubmit={handleAddSubmit} className="pt-4 border-t border-border space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase">
+                    Account Name
                   </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={newAcct.interest_rate ?? ''}
-                    onChange={(e) =>
-                      setNewAcct({ ...newAcct, interest_rate: parseFloat(e.target.value) || 0 })
-                    }
-                    className="w-full px-3 py-1.5 text-xs font-semibold text-ink-900 bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
+                  <Input
+                    type="text"
+                    required
+                    value={newAcct.name || ''}
+                    onChange={(e) => setNewAcct({ ...newAcct, name: e.target.value })}
+                    placeholder="e.g. Chequing A"
+                    className="h-8 text-xs"
                   />
                 </div>
-              )}
 
-              {newAcct.type === 'liability' && (
-                <div>
-                  <label className="block text-[11px] font-bold text-ink-400 uppercase mb-1">
-                    Market Value ($)
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase">
+                    Type
                   </label>
-                  <input
+                  <select
+                    value={newAcct.type}
+                    onChange={(e) => setNewAcct({ ...newAcct, type: e.target.value as AccountType })}
+                    className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {ACCOUNT_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {ACCOUNT_TYPE_LABELS[t]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase">
+                    Owner
+                  </label>
+                  <select
+                    value={newAcct.owner}
+                    onChange={(e) => setNewAcct({ ...newAcct, owner: e.target.value })}
+                    className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {ownerOptions.map((o) => (
+                      <option key={o} value={o}>
+                        {o === 'Joint' ? 'Joint' : members.find((m) => m.id === o)?.name || o}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase">
+                    Current Balance ($)
+                  </label>
+                  <Input
                     type="number"
-                    step="1000"
-                    value={newAcct.market_value ?? ''}
-                    onChange={(e) =>
-                      setNewAcct({ ...newAcct, market_value: parseFloat(e.target.value) || 0 })
-                    }
-                    placeholder="e.g. House Estimated Value"
-                    className="w-full px-3 py-1.5 text-xs font-semibold text-ink-900 bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
+                    step="any"
+                    value={newAcct.balance ?? ''}
+                    onChange={(e) => setNewAcct({ ...newAcct, balance: parseFloat(e.target.value) || 0 })}
+                    className="h-8 text-xs"
                   />
                 </div>
-              )}
-            </div>
 
-            <button
-              type="submit"
-              className="px-4 py-2 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-lg transition-all"
-            >
-              Save New Account
-            </button>
-          </form>
+                {['savings', 'investment', 'liability'].includes(newAcct.type || '') && (
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase">
+                      Interest Rate (%)
+                    </label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={newAcct.interest_rate ?? ''}
+                      onChange={(e) =>
+                        setNewAcct({ ...newAcct, interest_rate: parseFloat(e.target.value) || 0 })
+                      }
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                )}
+
+                {newAcct.type === 'liability' && (
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-muted-foreground uppercase">
+                      Market Value ($)
+                    </label>
+                    <Input
+                      type="number"
+                      step="1000"
+                      value={newAcct.market_value ?? ''}
+                      onChange={(e) =>
+                        setNewAcct({ ...newAcct, market_value: parseFloat(e.target.value) || 0 })
+                      }
+                      placeholder="e.g. House Estimated Value"
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <Button type="submit" size="sm" className="mt-2">
+                Save New Account
+              </Button>
+            </form>
+          </CardContent>
         )}
-      </div>
+      </Card>
 
       {/* Accounts Grouped by Type */}
       <div className="space-y-8">
@@ -275,8 +294,8 @@ export const AccountsManager: React.FC = () => {
           if (!typeAccounts || typeAccounts.length === 0) return null;
 
           return (
-            <div key={type} className="space-y-3">
-              <h3 className="text-sm font-bold text-ink-900 border-b border-ink-200 pb-2">
+            <div key={type} className="space-y-4">
+              <h3 className="text-sm font-bold border-b border-border pb-2">
                 {ACCOUNT_TYPE_LABELS[type]}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -343,36 +362,38 @@ const AccountEditCard: React.FC<AccountEditCardProps> = ({
   };
 
   return (
-    <div className="bg-white border border-ink-200 rounded-xl p-4 shadow-xs space-y-4 relative group hover:border-brand-300 transition-colors">
-      <button
+    <Card className="relative group overflow-hidden transition-colors hover:border-primary/50">
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={onDelete}
-        className="absolute top-3 right-3 text-ink-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"
+        className="absolute top-2 right-2 h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity z-10"
         title="Delete Account"
       >
-        <Trash2 className="w-4 h-4" />
-      </button>
-
-      <div>
+        <Trash2 className="h-3 w-3" />
+      </Button>
+      
+      <CardHeader className="p-4 pb-2">
         <input
           type="text"
           value={localName}
           onChange={(e) => setLocalName(e.target.value)}
           onBlur={commitName}
-          className="text-sm font-bold text-ink-900 bg-transparent border-b border-transparent hover:border-ink-200 focus:border-brand-500 focus:outline-none w-[90%] pb-0.5 transition-colors"
+          className="text-sm font-bold bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none w-[90%] pb-0.5 transition-colors"
         />
-        <div className="text-[10px] font-bold uppercase tracking-wider text-ink-400 mt-1">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-1">
           {account.id}
         </div>
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="w-1/3">
-            <label className="block text-[10px] font-bold text-ink-400 uppercase mb-1">Owner</label>
+      </CardHeader>
+      
+      <CardContent className="p-4 pt-2 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-1/3 space-y-1">
+            <label className="block text-[10px] font-bold text-muted-foreground uppercase">Owner</label>
             <select
               value={account.owner}
               onChange={(e) => onSave({ owner: e.target.value })}
-              className="w-full px-2 py-1 text-xs font-semibold bg-ink-50 border border-ink-200 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full px-2 py-1 h-7 text-xs font-semibold bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
             >
               {ownerOptions.map((o) => (
                 <option key={o} value={o}>
@@ -381,22 +402,22 @@ const AccountEditCard: React.FC<AccountEditCardProps> = ({
               ))}
             </select>
           </div>
-          <div className="w-2/3">
-            <label className="block text-[10px] font-bold text-ink-400 uppercase mb-1">Balance ($)</label>
+          <div className="w-2/3 space-y-1">
+            <label className="block text-[10px] font-bold text-muted-foreground uppercase">Balance ($)</label>
             <input
               type="number"
               step="any"
               value={localBalance}
               onChange={(e) => setLocalBalance(e.target.value)}
               onBlur={commitBalance}
-              className="w-full px-2 py-1 text-xs font-bold text-ink-900 bg-ink-50 border border-ink-200 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full px-2 py-1 h-7 text-xs font-bold bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
 
         {['chequing', 'savings', 'investment'].includes(account.type) && (
-          <div>
-            <label className="block text-[10px] font-bold text-ink-400 uppercase mb-1">Target Floor ($)</label>
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-muted-foreground uppercase">Target Floor ($)</label>
             <input
               type="number"
               step="any"
@@ -404,25 +425,25 @@ const AccountEditCard: React.FC<AccountEditCardProps> = ({
               onChange={(e) => setLocalTargetFloor(e.target.value)}
               onBlur={commitTargetFloor}
               placeholder="Min balance guard"
-              className="w-full px-2 py-1 text-xs font-semibold bg-ink-50 border border-ink-200 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full px-2 py-1 h-7 text-xs font-semibold bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         )}
 
         {account.type === 'liability' && (
-          <div>
-            <label className="block text-[10px] font-bold text-ink-400 uppercase mb-1">Market Value ($)</label>
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-muted-foreground uppercase">Market Value ($)</label>
             <input
               type="number"
               step="1000"
               value={localMarketValue}
               onChange={(e) => setLocalMarketValue(e.target.value)}
               onBlur={commitMarketValue}
-              className="w-full px-2 py-1 text-xs font-semibold bg-ink-50 border border-ink-200 rounded-md focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full px-2 py-1 h-7 text-xs font-semibold bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

@@ -9,6 +9,7 @@ export interface DailyBalancePoint {
   liquidAssets: number;
   realEstateEquity: number;
   totalDebt: number;
+  totalCredit: number;
   alerts: {
     accountId: string;
     accountName: string;
@@ -208,7 +209,16 @@ export function projectBalances(
       (sum, id) => sum + (balances[id] || 0),
       0
     );
-    const debtSum = debtIds.reduce((sum, id) => sum + (balances[id] || 0), 0);
+    let debtSum = 0;
+    let creditSum = 0;
+    for (const id of debtIds) {
+      const bal = balances[id] || 0;
+      if (bal > 0) {
+        debtSum += bal;
+      } else {
+        creditSum += Math.abs(bal); // over-balance credits
+      }
+    }
     const reOwed = reIds.reduce((sum, id) => sum + (balances[id] || 0), 0);
     const nakedLiab = nakedLiabIds.reduce(
       (sum, id) => sum + (balances[id] || 0),
@@ -255,6 +265,7 @@ export function projectBalances(
       liquidAssets,
       realEstateEquity: reEquity,
       totalDebt: debtSum,
+      totalCredit: creditSum,
       alerts,
     });
 

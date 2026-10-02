@@ -12,6 +12,7 @@ import {
   blueprintToJson,
   jsonToBlueprint,
 } from '../core/serialization';
+import { format, startOfMonth } from 'date-fns';
 
 const STORAGE_KEY = 'payday_blueprint';
 const EXECUTION_STORAGE_KEY = 'payday_executed_checklist';
@@ -24,11 +25,25 @@ interface PlannerState {
   activeTab: string;
   quickCheckInOpen: boolean;
   startingBalancesReflectToday: boolean;
+  recentSpendingSummary: string | null;
+  parsedTransactions: any[];
+  analysisLogs: string[];
+  uploadedFiles: Array<{ id: string, name: string, count: number, startDate?: Date, endDate?: Date }>;
+  analysisStartDate: string;
+  analysisEndDate: string;
 
   // Actions
   setActiveTab: (tab: string) => void;
   setQuickCheckInOpen: (open: boolean) => void;
   setStartingBalancesReflectToday: (reflectToday: boolean) => void;
+  setRecentSpendingSummary: (summary: string | null) => void;
+  setParsedTransactions: (txs: any[]) => void;
+  setAnalysisLogs: (logs: string[]) => void;
+  setAnalysisStartDate: (date: string) => void;
+  setAnalysisEndDate: (date: string) => void;
+  setUploadedFiles: (files: Array<{ id: string, name: string, count: number, startDate?: Date, endDate?: Date }>) => void;
+  addUploadedFile: (file: { id: string, name: string, count: number, startDate?: Date, endDate?: Date }) => void;
+  removeUploadedFile: (id: string) => void;
   
   // Member actions
   updateMemberName: (id: string, name: string) => void;
@@ -48,6 +63,7 @@ interface PlannerState {
   // Blueprint actions
   importBlueprintJson: (jsonStr: string) => void;
   getBlueprintJson: (options?: { minified?: boolean; compactIds?: boolean }) => string;
+  applyBlueprintChanges: (newAccounts: Account[], newEvents: Event[], executedOverrides: Record<string, boolean>) => void;
   resetToDefaults: () => void;
 }
 
@@ -107,11 +123,28 @@ export const usePlannerStore = create<PlannerState>((set, get) => {
     activeTab: 'Dashboard',
     quickCheckInOpen: false,
     startingBalancesReflectToday: true,
+    recentSpendingSummary: null,
+    parsedTransactions: [],
+    analysisLogs: [],
+    uploadedFiles: [],
+    analysisStartDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+    analysisEndDate: format(new Date(), 'yyyy-MM-dd'),
 
     setActiveTab: (tab) => set({ activeTab: tab }),
     setQuickCheckInOpen: (open) => set({ quickCheckInOpen: open }),
     setStartingBalancesReflectToday: (reflectToday) =>
       set({ startingBalancesReflectToday: reflectToday }),
+    setRecentSpendingSummary: (summary) => set({ recentSpendingSummary: summary }),
+    setParsedTransactions: (txs) => set({ parsedTransactions: txs }),
+    setAnalysisLogs: (logs) => set({ analysisLogs: logs }),
+    setAnalysisStartDate: (date) => set({ analysisStartDate: date }),
+    setAnalysisEndDate: (date) => set({ analysisEndDate: date }),
+    setUploadedFiles: (files) => set({ uploadedFiles: files }),
+    addUploadedFile: (file) => set((state) => ({ uploadedFiles: [...state.uploadedFiles, file] })),
+    removeUploadedFile: (id) => set((state) => ({ 
+      uploadedFiles: state.uploadedFiles.filter(f => f.id !== id),
+      parsedTransactions: state.parsedTransactions.filter(tx => tx.fileId !== id)
+    })),
 
     updateMemberName: (id, name) => {
       set((state) => {
@@ -210,6 +243,19 @@ export const usePlannerStore = create<PlannerState>((set, get) => {
         members: parsed.members,
         accounts: parsed.accounts,
         events: parsed.events,
+      });
+    },
+
+    applyBlueprintChanges: (newAccounts, newEvents, executedOverrides) => {
+      set((state) => {
+        saveState({ members: state.members, accounts: newAccounts, events: newEvents });
+        const nextExecuted = { ...state.executedEvents, ...executedOverrides };
+        saveExecuted(nextExecuted);
+        return {
+          accounts: newAccounts,
+          events: newEvents,
+          executedEvents: nextExecuted,
+        };
       });
     },
 

@@ -3,6 +3,17 @@ import { usePlannerStore } from '../store/usePlannerStore';
 import { buildCalendar } from '../core/calendar';
 import { format, addDays } from 'date-fns';
 import { Calendar as CalendarIcon, CheckCircle2, Circle, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 export const TimelineChecklist: React.FC = () => {
   const { events, accounts, executedEvents, toggleExecutedEvent } = usePlannerStore();
@@ -36,44 +47,48 @@ export const TimelineChecklist: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <CalendarIcon className="w-5 h-5 text-brand-500" />
-          <div>
-            <h2 className="text-base font-bold text-ink-900">Timeline & Checklist</h2>
-            <p className="text-xs text-ink-400">
-              Browse upcoming occurrence dates and track manual payments
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-ink-700">
-            <span>From:</span>
-            <input
-              type="date"
-              value={startStr}
-              onChange={(e) => setStartStr(e.target.value)}
-              className="px-2.5 py-1.5 text-xs bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
-            />
+      <Card>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="w-5 h-5 text-primary" />
+            <div className="space-y-1">
+              <CardTitle className="text-base">Timeline & Checklist</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Browse upcoming occurrence dates and track manual payments
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-ink-700">
-            <span>To:</span>
-            <input
-              type="date"
-              value={endStr}
-              onChange={(e) => setEndStr(e.target.value)}
-              className="px-2.5 py-1.5 text-xs bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
-            />
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs font-semibold">
+              <span className="text-muted-foreground">From:</span>
+              <Input
+                type="date"
+                value={startStr}
+                onChange={(e) => setStartStr(e.target.value)}
+                className="h-8 w-auto text-xs"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 text-xs font-semibold">
+              <span className="text-muted-foreground">To:</span>
+              <Input
+                type="date"
+                value={endStr}
+                onChange={(e) => setEndStr(e.target.value)}
+                className="h-8 w-auto text-xs"
+              />
+            </div>
           </div>
-        </div>
-      </div>
+        </CardHeader>
+      </Card>
 
       {Object.keys(grouped).length === 0 ? (
-        <div className="p-8 text-center bg-white border border-ink-200 rounded-xl text-ink-400 text-sm">
-          No scheduled events found in this date range.
-        </div>
+        <Card>
+          <CardContent className="p-8 text-center text-muted-foreground text-sm">
+            No scheduled events found in this date range.
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-3">
           {Object.entries(grouped).map(([dateStr, items]) => {
@@ -84,22 +99,22 @@ export const TimelineChecklist: React.FC = () => {
               <details
                 key={dateStr}
                 open={hasPayday}
-                className="bg-white border border-ink-200 rounded-xl overflow-hidden group shadow-2xs"
+                className="bg-card border border-border rounded-xl overflow-hidden group shadow-sm"
               >
-                <summary className="px-4 py-3 font-semibold text-xs text-ink-900 flex items-center justify-between cursor-pointer select-none bg-white hover:bg-ink-100/50 transition-colors">
+                <summary className="px-4 py-3 font-semibold text-xs flex items-center justify-between cursor-pointer select-none bg-card hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm">
                       {format(dateObj, 'EEE, MMM dd, yyyy')}
                     </span>
                     {hasPayday && <span className="text-sm">💰 Payday</span>}
-                    <span className="text-xs text-ink-400 font-normal">
+                    <span className="text-xs text-muted-foreground font-normal">
                       ({items.length} item{items.length > 1 ? 's' : ''})
                     </span>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-ink-400 group-open:rotate-180 transition-transform" />
+                  <ChevronDown className="w-4 h-4 text-muted-foreground group-open:rotate-180 transition-transform" />
                 </summary>
 
-                <div className="px-4 pb-3 pt-1 border-t border-ink-200/60 divide-y divide-ink-100">
+                <div className="px-4 pb-3 pt-1 border-t border-border divide-y divide-border/50">
                   {items.map((row) => {
                     const execKey = `${row.date}_${row.id}`;
                     const isExecuted = !!executedEvents[execKey];
@@ -111,16 +126,16 @@ export const TimelineChecklist: React.FC = () => {
                     const toStr =
                       accountMap[row.to_account_id || ''] || row.to_account_id || '—';
 
-                    let badgeColor = 'text-blue-600 bg-blue-50';
+                    let badgeColor = 'text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400';
                     let directionStr = `${fromStr} → ${toStr}`;
                     let sign = '→';
 
                     if (row.type === 'inflow') {
-                      badgeColor = 'text-emerald-600 bg-emerald-50';
+                      badgeColor = 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-400';
                       directionStr = `→ ${toStr}`;
                       sign = '+';
                     } else if (row.type === 'outflow') {
-                      badgeColor = 'text-rose-600 bg-rose-50';
+                      badgeColor = 'text-rose-600 bg-rose-50 dark:bg-rose-950 dark:text-rose-400';
                       directionStr = `from ${fromStr}`;
                       sign = '−';
                     }
@@ -128,40 +143,41 @@ export const TimelineChecklist: React.FC = () => {
                     return (
                       <div
                         key={row.id + row.date}
-                        className={`py-2.5 flex items-center justify-between text-xs gap-3 transition-opacity ${
-                          isExecuted ? 'opacity-50 line-through' : ''
-                        }`}
+                        className={cn(
+                          "py-3 flex items-center justify-between text-xs gap-3 transition-all",
+                          isExecuted && "opacity-50"
+                        )}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 overflow-hidden">
                           <button
                             onClick={() => toggleExecutedEvent(row.date, row.id)}
-                            className="text-ink-400 hover:text-brand-500 transition-colors"
+                            className="text-muted-foreground hover:text-primary transition-colors shrink-0"
                             title={isExecuted ? 'Mark as Pending' : 'Mark as Executed/Paid'}
                           >
                             {isExecuted ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-600 fill-emerald-100" />
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 fill-emerald-100 dark:text-emerald-400 dark:fill-emerald-950" />
                             ) : (
                               <Circle className="w-4 h-4" />
                             )}
                           </button>
 
                           <span
-                            className={`font-bold px-2 py-0.5 rounded text-[11px] ${badgeColor}`}
+                            className={cn("font-bold px-2 py-0.5 rounded text-[11px] whitespace-nowrap shrink-0", badgeColor, isExecuted && "line-through")}
                           >
                             {sign} ${row.amount.toLocaleString()}
                           </span>
 
-                          <span className="font-semibold text-ink-900">
+                          <span className={cn("font-semibold truncate", isExecuted && "line-through")}>
                             {row.name}
                           </span>
 
-                          <span className="text-ink-400">{directionStr}</span>
+                          <span className="text-muted-foreground truncate hidden sm:inline-block">{directionStr}</span>
                         </div>
 
                         {row.execution === 'manual' && (
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">
                             ✋ manual
-                          </span>
+                          </Badge>
                         )}
                       </div>
                     );

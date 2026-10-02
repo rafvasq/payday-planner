@@ -1,32 +1,69 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { usePlannerStore } from '../store/usePlannerStore';
-import { 
-  parseCsvWithProfile, 
-  aggregateTransactions, 
-  autoDetectProfile,
-  ParsedTransaction,
-  BankProfile 
-} from '../core/csvParser';
-import { BANK_PROFILES } from '../core/bankProfiles';
+import { aggregateTransactions, autoDetectProfile } from '../core/csvParser';
 import Papa from 'papaparse';
-import { UploadCloud, Check, Copy, Calendar, AlertCircle, Info, Settings2 } from 'lucide-react';
+import { api, AppConfig, ProviderModels } from '../lib/apiClient';
+import { generateLedgerContext } from '../core/ledger';
 import { format, startOfMonth } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { 
+  UploadCloud, 
+  Loader2,
+  Calendar,
+  Copy,
+  Check,
+  Info,
+  AlertCircle,
+  Cpu,
+  Bot,
+  FileText,
+  X
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export const AnalysisTab: React.FC = () => {
-  const { getBlueprintJson } = usePlannerStore();
-  
-  const [selectedProfileId, setSelectedProfileId] = useState<string>(BANK_PROFILES[0].id);
-  const [transactions, setTransactions] = useState<ParsedTransaction[]>([]);
-  const [startDate, setStartDate] = useState<string>(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [detectedLog, setDetectedLog] = useState<string[]>([]);
+  const { 
+    getBlueprintJson,
+    accounts,
+    events,
+    setRecentSpendingSummary,
+    parsedTransactions,
+    setParsedTransactions,
+    analysisLogs,
+    setAnalysisLogs,
+    setActiveTab,
+    uploadedFiles,
+    setUploadedFiles,
+    removeUploadedFile,
+    analysisStartDate,
+    setAnalysisStartDate,
+    analysisEndDate,
+    setAnalysisEndDate
+  } = usePlannerStore();
   const [isDragging, setIsDragging] = useState(false);
-  const [includePayments, setIncludePayments] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [copied, setCopied] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [localAnalysis, setLocalAnalysis] = useState<string>('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const selectedProfile = BANK_PROFILES.find(p => p.id === selectedProfileId) as BankProfile;
+  const [availableModels, setAvailableModels] = useState<ProviderModels[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('');
+
+  useEffect(() => {
+    Promise.all([api.getProvider(), api.getModels()])
+      .then(([config, models]) => {
+        setAvailableModels(models);
+        setSelectedModel(config.extraction_model);
+      })
+      .catch(console.error);
+  }, []);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -38,76 +75,122 @@ export const AnalysisTab: React.FC = () => {
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFiles(e.dataTransfer.files);
+      await processFiles(Array.from(e.dataTransfer.files));
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      processFiles(files);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      await processFiles(Array.from(e.target.files));
     }
   };
 
-  const processFiles = (files: FileList) => {
-    const allTx: ParsedTransaction[] = [...transactions];
+  const processFiles = async (files: File[]) => {
+    setIsProcessing(true);
+    setAnalysisLogs([]);
+    const allTx = [...parsedTransactions];
     const newLogs: string[] = [];
-    let processed = 0;
-
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        
-        // Auto-detect profile from headers
-        const preview = Papa.parse(text, { header: true, preview: 1 });
-        const headers = preview.meta.fields || [];
-        const detected = autoDetectProfile(headers);
-        
-        const activeProfile = detected || selectedProfile;
-        
-        if (detected) {
-          newLogs.push(`Auto-detected ${detected.name} for ${file.name}`);
-        } else {
-          newLogs.push(`Using fallback ${selectedProfile.name} for ${file.name}`);
-        }
-
-        const newTx = parseCsvWithProfile(text, activeProfile, { includePayments });
-        allTx.push(...newTx);
-        processed++;
-
-        if (processed === files.length) {
-          // Sort by date ascending
-          allTx.sort((a, b) => a.date.getTime() - b.date.getTime());
-          setTransactions(allTx);
-          
-          setDetectedLog(prev => [...prev, ...newLogs]);
-        }
-      };
-      reader.readAsText(file);
-    });
+    const newFiles = [...uploadedFiles];
     
-    // Reset input so the same files can be selected again if needed
+    for (const file of files) {
+      if (!file.name.endsWith('.csv')) {
+        newLogs.push(`❌ Skipped ${file.name} (not a CSV)`);
+        continue;
+      }
+      
+      const fileId = crypto.randomUUID();
+      try {
+        const text = await file.text();
+        const parsed = Papa.parse(text, { header: true, preview: 1 });
+        const headers = parsed.meta.fields || [];
+        const detectedProfile = autoDetectProfile(headers);
+        const inferredCardName = detectedProfile ? detectedProfile.name : file.name.replace('.csv', '');
+        
+        if (detectedProfile) {
+          newLogs.push(`ℹ️ Auto-detected ${detectedProfile.name} headers.`);
+        }
+        
+        newLogs.push(`🚀 Sending ${file.name} to AI Extraction Engine...`);
+        
+        const response = await api.parseCsv(file, selectedModel);
+        
+        const count = response.transactions?.length || 0;
+        newLogs.push(`✅ Parsed ${count} transactions from ${file.name}`);
+        
+        let minDate: Date | undefined;
+        let maxDate: Date | undefined;
+
+        if (response.transactions) {
+          response.transactions.forEach((tx: any) => {
+            const date = new Date(tx.date);
+            if (!minDate || date < minDate) minDate = date;
+            if (!maxDate || date > maxDate) maxDate = date;
+
+            allTx.push({
+              ...tx,
+              card: tx.card || inferredCardName,
+              id: tx.id || crypto.randomUUID(),
+              fileId,
+              date // ensure it's a date object
+            });
+          });
+        }
+        
+        if (count > 0) {
+          newFiles.push({
+            id: fileId,
+            name: file.name,
+            count,
+            startDate: minDate,
+            endDate: maxDate
+          });
+        }
+
+        if (response.warning) {
+          if (response.warning === 'chunk_failure') {
+            newLogs.push(`⚠️ WARNING: Backend reported a chunking or math mismatch issue for ${file.name}. Please review extracted totals.`);
+          } else {
+            newLogs.push(`⚠️ ${response.warning}`);
+          }
+        }
+      } catch (err: any) {
+        newLogs.push(`❌ Failed to parse ${file.name}: ${err.message}`);
+      }
+    }
+    
+    // Sort transactions by date
+    allTx.sort((a, b) => a.date.getTime() - b.date.getTime());
+    setParsedTransactions(allTx);
+    setUploadedFiles(newFiles);
+    setAnalysisLogs([...analysisLogs, ...newLogs]);
+    setIsProcessing(false);
+    
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const { markdown: aggMarkdown, total } = useMemo(() => {
-    if (transactions.length === 0) return { markdown: '', total: 0 };
-    
-    const start = startDate ? new Date(startDate + 'T00:00:00') : undefined;
-    const end = endDate ? new Date(endDate + 'T23:59:59') : undefined;
-    
-    return aggregateTransactions(transactions, start, end);
-  }, [transactions, startDate, endDate]);
+    if (parsedTransactions.length === 0) return { markdown: '', total: 0 };
+    const start = analysisStartDate ? new Date(analysisStartDate + 'T00:00:00') : undefined;
+    const end = analysisEndDate ? new Date(analysisEndDate + 'T23:59:59') : undefined;
+    return aggregateTransactions(parsedTransactions, start, end);
+  }, [parsedTransactions, analysisStartDate, analysisEndDate]);
+
+  useEffect(() => {
+    if (aggMarkdown) {
+      setRecentSpendingSummary(aggMarkdown);
+    } else {
+      setRecentSpendingSummary(null);
+    }
+  }, [aggMarkdown, setRecentSpendingSummary]);
 
   const handleCopyPrompt = async () => {
     try {
       const jsonStr = getBlueprintJson({ minified: true, compactIds: true });
-      const prompt = `Act as an expert financial advisor. Here is my current financial blueprint (planned cashflow) and a summary of my actual spending from ${startDate || 'Start'} to ${endDate || 'End'}.
+      const prompt = `Act as an expert financial advisor. Here is my current financial blueprint (planned cashflow) and a summary of my actual spending from ${analysisStartDate || 'Start'} to ${analysisEndDate || 'End'}.
 
 Please analyze the aggregated spending. Compare my actual spending against the allocations in my blueprint (e.g., 'Shared Bills', 'Personal Bills'). Are my blueprint allocations accurate, or do I need to calibrate them?
 
@@ -125,173 +208,238 @@ ${jsonStr}`;
     }
   };
 
+  const handleQuickAnalysis = async () => {
+    if (!aggMarkdown) return;
+    setIsAnalyzing(true);
+    setLocalAnalysis('');
+    try {
+      const blueprintStr = getBlueprintJson({ minified: true, compactIds: true });
+      const blueprint = JSON.parse(blueprintStr);
+      const prompt = `Please provide a brief executive summary of this spending data compared to my blueprint. Where am I overspending? What adjustments do I need to make? Keep it concise.`;
+      
+      const ledgerContext = generateLedgerContext(accounts, events, 30);
+      const stream = api.chatStream([{role: 'user', content: prompt}], blueprint, ledgerContext, aggMarkdown, selectedModel);
+      
+      for await (const chunk of stream) {
+        setLocalAnalysis(prev => prev + chunk);
+      }
+    } catch (err: any) {
+      setLocalAnalysis(`[Error generating analysis: ${err.message}]`);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const clearData = () => {
-    setTransactions([]);
-    setStartDate(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-    setEndDate(format(new Date(), 'yyyy-MM-dd'));
-    setDetectedLog([]);
+    setParsedTransactions([]);
+    setUploadedFiles([]);
+    setAnalysisStartDate(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+    setAnalysisEndDate(format(new Date(), 'yyyy-MM-dd'));
+    setAnalysisLogs([]);
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 max-w-4xl">
-      <div className="bg-white rounded-xl shadow-xs border border-ink-200 overflow-hidden">
-        <div className="p-6 border-b border-ink-200">
-          <h2 className="text-lg font-bold text-ink-900">Spending Analysis</h2>
-          <p className="text-sm text-ink-500 mt-1">
-            Upload your bank CSVs to locally aggregate your spending and generate an LLM analysis prompt.
-          </p>
-        </div>
+    <div className="space-y-6 max-w-4xl">
+      <Card>
+        <CardHeader>
+          <CardTitle>Spending Analysis (AI Powered)</CardTitle>
+          <CardDescription>
+            Upload your bank CSVs. Our local AI will natively understand and extract transactions without any brittle bank profiles.
+          </CardDescription>
+        </CardHeader>
 
-        <div className="p-6 space-y-6">
-          <div className="space-y-4">
-            <div className="w-full sm:w-64 space-y-1.5">
-              <label className="text-xs font-bold text-ink-700 uppercase tracking-wide">
-                Fallback Bank Profile
-              </label>
-              <select
-                value={selectedProfileId}
-                onChange={(e) => setSelectedProfileId(e.target.value)}
-                className="w-full bg-ink-50 border border-ink-200 text-ink-900 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 p-2.5"
-              >
-                {BANK_PROFILES.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="w-full sm:w-64 space-y-1.5">
-              <label className="text-xs font-bold text-ink-700 uppercase tracking-wide flex items-center gap-1.5">
-                <Settings2 className="w-3.5 h-3.5" />
-                Parsing Options
-              </label>
-              <div className="w-full bg-ink-50 border border-ink-200 rounded-lg p-2.5 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="includePayments"
-                  checked={includePayments}
-                  onChange={(e) => setIncludePayments(e.target.checked)}
-                  className="w-4 h-4 text-brand-500 bg-white border-ink-300 rounded focus:ring-brand-500"
-                />
-                <label htmlFor="includePayments" className="text-sm text-ink-900 cursor-pointer select-none">
-                  Include Payments & Refunds
-                </label>
+        <CardContent className="space-y-6">
+          <div className="w-full flex flex-col items-center">
+            <input
+              type="file"
+              multiple
+              accept=".csv"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => !isProcessing && fileInputRef.current?.click()}
+              className={cn(
+                "w-full h-full min-h-[140px] flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-xl p-10 transition-colors",
+                isProcessing ? "bg-muted cursor-wait opacity-70" : "cursor-pointer",
+                isDragging && !isProcessing
+                  ? "bg-primary/10 border-primary text-primary" 
+                  : "bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:border-primary/50"
+              )}
+            >
+              {isProcessing ? (
+                <Loader2 className="w-10 h-10 animate-spin text-primary" />
+              ) : (
+                <UploadCloud className={cn("w-10 h-10", isDragging ? "text-primary" : "text-muted-foreground")} />
+              )}
+              <div className="text-center">
+                <p className="text-sm font-bold text-foreground">
+                  {isProcessing ? "Processing via AI Extraction Engine..." : "Click to upload or drag and drop"}
+                </p>
+                <p className="text-xs mt-1">Bank agnostic. Just drop the CSV.</p>
               </div>
             </div>
             
-            <div className="flex-1 w-full mt-4">
-              <input
-                type="file"
-                multiple
-                accept=".csv"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={`w-full flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-xl p-10 cursor-pointer transition-colors ${
-                  isDragging 
-                    ? 'bg-brand-50 border-brand-500 text-brand-700' 
-                    : 'bg-ink-50 border-ink-300 text-ink-500 hover:bg-ink-100 hover:border-ink-400'
-                }`}
-              >
-                <UploadCloud className={`w-10 h-10 ${isDragging ? 'text-brand-500' : 'text-ink-400'}`} />
-                <div className="text-center">
-                  <p className="text-sm font-bold text-ink-900">Click to upload or drag and drop</p>
-                  <p className="text-xs mt-1 text-ink-500">Support for multiple .csv files simultaneously</p>
-                </div>
+            {availableModels.length > 0 && (
+              <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <Cpu className="w-3.5 h-3.5" />
+                <span>Extracting using</span>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  disabled={isProcessing}
+                  className="bg-transparent border-none font-medium text-foreground p-0 h-auto focus:ring-0 cursor-pointer"
+                >
+                  {availableModels.map(provider => (
+                    <optgroup key={provider.provider_type} label={provider.provider_name}>
+                      {provider.models.map(model => (
+                        <option key={model.id} value={model.id}>
+                          {model.name} {provider.provider_type === 'ollama' ? '(Local)' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <span>▾</span>
               </div>
-            </div>
+            )}
           </div>
 
-          {detectedLog.length > 0 && (
-            <div className="flex flex-col gap-1.5 bg-brand-50 border border-brand-200 p-3 rounded-lg">
-              <div className="flex items-center gap-1.5 text-brand-700 font-bold text-xs uppercase tracking-wide">
-                <Info className="w-3.5 h-3.5" />
-                <span>Import Log</span>
+          {uploadedFiles.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Sandbox Files</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {uploadedFiles.map(f => (
+                  <div key={f.id} className="flex items-center justify-between p-2 border border-border rounded-md bg-muted/20">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <FileText className="w-4 h-4 text-primary shrink-0" />
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="text-sm font-medium truncate">{f.name}</span>
+                        <span className="text-xs text-muted-foreground">{f.count} rows {f.startDate && f.endDate ? `(${format(f.startDate, 'MMM d')} - ${format(f.endDate, 'MMM d')})` : ''}</span>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0" onClick={() => removeUploadedFile(f.id)}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
               </div>
-              <ul className="text-xs text-brand-700 font-medium space-y-0.5 list-disc pl-5">
-                {detectedLog.map((log, i) => (
+            </div>
+          )}
+
+          {analysisLogs.length > 0 && (
+            <div className="flex flex-col gap-1.5 bg-primary/10 border border-primary/20 p-3 rounded-lg">
+              <div className="flex items-center gap-1.5 text-primary font-bold text-xs uppercase tracking-wide">
+                <Info className="w-3.5 h-3.5" />
+                <span>AI Pipeline Log</span>
+              </div>
+              <ul className="text-xs text-primary/90 font-medium space-y-0.5 list-disc pl-5">
+                {analysisLogs.map((log, i) => (
                   <li key={i}>{log}</li>
                 ))}
               </ul>
             </div>
           )}
 
-          {transactions.length > 0 && (
-            <div className="bg-ink-50 border border-ink-200 rounded-lg p-4 space-y-4">
+          {parsedTransactions.length > 0 && (
+            <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-4">
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-ink-400" />
-                    <input 
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <Input 
                       type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="text-sm bg-white border border-ink-200 rounded px-2 py-1 focus:ring-1 focus:ring-brand-500 outline-none"
+                      value={analysisStartDate}
+                      onChange={(e) => setAnalysisStartDate(e.target.value)}
+                      className="h-8 w-auto text-xs"
                     />
-                    <span className="text-ink-400">to</span>
-                    <input 
+                    <span className="text-muted-foreground text-sm">to</span>
+                    <Input 
                       type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="text-sm bg-white border border-ink-200 rounded px-2 py-1 focus:ring-1 focus:ring-brand-500 outline-none"
+                      value={analysisEndDate}
+                      onChange={(e) => setAnalysisEndDate(e.target.value)}
+                      className="h-8 w-auto text-xs"
                     />
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-sm font-semibold text-ink-700">
-                    {transactions.length} rows parsed
-                  </span>
-                  <button 
+                  <Badge variant="outline" className="font-semibold">
+                    {parsedTransactions.length} rows parsed
+                  </Badge>
+                  <Button 
+                    variant="ghost"
+                    size="sm"
                     onClick={clearData}
-                    className="text-xs text-red-600 font-semibold hover:underline"
+                    className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                   >
                     Clear Data
-                  </button>
+                  </Button>
                 </div>
               </div>
 
-              <div className="bg-white border border-ink-200 rounded-md p-4 overflow-auto max-h-96">
-                <pre className="text-xs text-ink-700 font-mono whitespace-pre-wrap">
+              <div className="bg-background border border-border rounded-md p-4 overflow-auto max-h-96">
+                <pre className="text-xs font-mono whitespace-pre-wrap">
                   {aggMarkdown}
                 </pre>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded text-xs font-semibold border border-amber-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 dark:bg-amber-950 dark:text-amber-400 px-3 py-2 rounded-md text-xs font-semibold border border-amber-200 dark:border-amber-900/50">
                   <AlertCircle className="w-4 h-4" />
-                  <span>Data remains completely local. No servers involved.</span>
+                  <span>Powered by strict schema normalization.</span>
                 </div>
                 
-                <button
-                  onClick={handleCopyPrompt}
-                  className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg transition-all shadow-md ${
-                    copied
-                      ? 'bg-emerald-600 text-white shadow-emerald-200'
-                      : 'bg-brand-500 hover:bg-brand-600 text-white shadow-brand-200'
-                  }`}
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4 animate-bounce" />
-                      <span>Copied Analysis Prompt!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" />
-                      <span>Copy Prompt + Blueprint</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleQuickAnalysis}
+                    disabled={isAnalyzing}
+                    className="gap-2 shadow-md transition-all bg-primary hover:bg-primary/90"
+                  >
+                    {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
+                    <span>{isAnalyzing ? "Analyzing..." : "Analyze Now"}</span>
+                  </Button>
+                  <Button
+                    onClick={handleCopyPrompt}
+                    variant="outline"
+                    className={cn(
+                      "gap-2 shadow-sm transition-all",
+                      copied ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white" : ""
+                    )}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4 animate-bounce" />
+                        <span>Copied Analysis Prompt!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        <span>Copy Prompt</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
+
+              {localAnalysis && (
+                <div className="bg-primary/5 border border-primary/20 rounded-md p-4 mt-4">
+                  <div className="flex items-center gap-2 mb-2 text-primary font-semibold">
+                    <Bot className="w-4 h-4" />
+                    <span>Quick Analysis</span>
+                  </div>
+                  <div className="text-sm text-foreground/90 leading-relaxed prose dark:prose-invert max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{localAnalysis}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

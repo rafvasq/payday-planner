@@ -1,0 +1,18 @@
+[project]
+name = "payday-planner-backend"
+version = "0.1.0"
+description = "Local-first FastAPI backend for Payday Planner"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.6",
+    "litellm>=1.44.0",
+    "mellea>=0.1.0",
+    "keyring>=25.4.0",
+    "pydantic>=2.9.2",
+    "python-multipart>=0.0.12"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

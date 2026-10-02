@@ -10,6 +10,7 @@ import {
   isEqual,
 } from 'date-fns';
 import { Event, WeekendShift, CalendarRow } from './models';
+import { isNonBusinessDay } from './holidays';
 
 /**
  * Format a Date object to YYYY-MM-DD string
@@ -47,23 +48,49 @@ export function advanceQuarter(d: Date): Date {
 }
 
 /**
- * Shift a date off a weekend per rule.
+ * Shift a date off a weekend or Payments Canada holiday per rule.
+ *
+ * Behavior:
+ * - If the event has an explicit shift direction ('previous_business_day' or
+ *   'next_business_day'), that direction is applied for BOTH weekends and
+ *   holidays until a valid business day is reached.
+ * - If the event has weekend_shift='none', weekends are NOT shifted (preserving
+ *   existing behavior), but holidays ARE shifted to the next business day
+ *   (the global default defined in the implementation plan v19).
+ *
  * Sunday = 0, Saturday = 6 in JS getDay().
  */
 export function applyWeekendShift(d: Date, rule: WeekendShift): Date {
-  const day = getDay(d);
+  let result = new Date(d.getTime());
+
   if (rule === 'previous_business_day') {
-    if (day === 6) return addDays(d, -1); // Saturday -> Friday
-    if (day === 0) return addDays(d, -2); // Sunday -> Friday
+    // Walk backward until we land on a business day
+    while (isNonBusinessDay(result)) {
+      result = addDays(result, -1);
+    }
   } else if (rule === 'next_business_day') {
-    if (day === 6) return addDays(d, 2); // Saturday -> Monday
-    if (day === 0) return addDays(d, 1); // Sunday -> Monday
+    // Walk forward until we land on a business day
+    while (isNonBusinessDay(result)) {
+      result = addDays(result, 1);
+    }
+  } else {
+    // rule === 'none': don't shift weekends, but DO shift holidays
+    // to the next business day (global default for holidays)
+    const day = result.getDay();
+    if (day !== 0 && day !== 6) {
+      // It's a weekday — check if it's a holiday
+      while (isNonBusinessDay(result)) {
+        result = addDays(result, 1);
+      }
+    }
+    // If it's a weekend, leave it alone (rule is 'none')
   }
-  return d;
+
+  return result;
 }
 
 /**
- * Add N business days (skipping Saturday and Sunday) to a date.
+ * Add N business days (skipping weekends and Payments Canada holidays) to a date.
  */
 export function addBusinessDays(d: Date, days: number): Date {
   if (days <= 0) return d;
@@ -71,8 +98,7 @@ export function addBusinessDays(d: Date, days: number): Date {
   let added = 0;
   while (added < days) {
     cur = addDays(cur, 1);
-    const day = getDay(cur);
-    if (day !== 0 && day !== 6) {
+    if (!isNonBusinessDay(cur)) {
       added++;
     }
   }
@@ -303,4 +329,23 @@ export function buildCalendar(
   // Stable sort by date YYYY-MM-DD preserving insertion order for same-day events
   rows.sort((a, b) => a.date.localeCompare(b.date));
   return rows;
+}
+
+/**
+ * Calculate business days between two dates
+ */
+export function getBusinessDaysBetween(startStr: string, endStr: string): number {
+  const startDate = parseISO(startStr);
+  const endDate = parseISO(endStr);
+  if (startDate > endDate) return 0;
+  
+  let count = 0;
+  let cur = new Date(startDate.getTime());
+  while (formatDate(cur) < formatDate(endDate)) {
+    cur = addDays(cur, 1);
+    if (!isNonBusinessDay(cur)) {
+      count++;
+    }
+  }
+  return count;
 }

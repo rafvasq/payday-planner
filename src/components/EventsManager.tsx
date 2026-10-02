@@ -1,10 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { Event, EventType, Frequency, ExecutionType, WeekendShift } from '../core/models';
-import { nextOccurrence } from '../core/calendar';
-import { Plus, Trash2, Calendar, Filter, FileText, X, ChevronRight, TrendingUp, TrendingDown, ArrowRightLeft, ArrowUp, ArrowDown } from 'lucide-react';
+import { nextOccurrence, getBusinessDaysBetween } from '../core/calendar';
+import { Plus, Trash2, Calendar, Filter, FileText, ChevronRight, TrendingUp, TrendingDown, ArrowRightLeft, ArrowUp, ArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
-import clsx from 'clsx';
+import { cn } from '@/lib/utils';
+
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 
 const EVENT_TYPES: EventType[] = ['inflow', 'outflow', 'transfer'];
 const EVENT_TYPE_LABELS: Record<EventType, string> = {
@@ -97,13 +113,13 @@ export const EventsManager: React.FC = () => {
   const renderSortableHeader = (col: SortColumn, label: string, alignRight = false) => {
     return (
       <th 
-        className={clsx(
-          "px-4 py-3 font-bold text-[10px] uppercase tracking-wider cursor-pointer hover:bg-ink-100 transition-colors select-none",
-          sortColumn === col ? "text-ink-900" : "text-ink-500"
+        className={cn(
+          "px-4 py-3 font-bold text-[10px] uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors select-none",
+          sortColumn === col ? "text-foreground" : "text-muted-foreground"
         )}
         onClick={() => handleSort(col)}
       >
-        <div className={clsx("flex items-center gap-1", alignRight && "justify-end")}>
+        <div className={cn("flex items-center gap-1", alignRight && "justify-end")}>
           {label}
           {sortColumn === col && (
             sortDirection === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
@@ -145,6 +161,15 @@ export const EventsManager: React.FC = () => {
 
     addEvent(fullEvent);
     setAddOpen(false);
+    setNewEvent({
+      name: '',
+      event_type: 'outflow',
+      amount: 0,
+      from_account_id: accounts[0]?.id || null,
+      to_account_id: null,
+      frequency: 'monthly',
+      anchor_date: format(new Date(), 'yyyy-MM-dd'),
+    });
     setSelectedEventId(fullEvent.id); // Open drawer immediately
   };
 
@@ -159,36 +184,31 @@ export const EventsManager: React.FC = () => {
   const selectedEvent = events.find(e => e.id === selectedEventId);
 
   return (
-    <div className="space-y-6 relative">
-      {/* Drawer Overlay */}
-      {selectedEvent && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-ink-900/40 backdrop-blur-sm transition-opacity">
-          <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
-            <div className="p-4 border-b border-ink-200 flex items-center justify-between bg-ink-50">
-              <div className="flex items-center gap-2">
-                <div className={clsx(
-                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                  selectedEvent.event_type === 'inflow' ? "bg-emerald-100 text-emerald-600" :
-                  selectedEvent.event_type === 'outflow' ? "bg-rose-100 text-rose-600" :
-                  "bg-blue-100 text-blue-600"
-                )}>
-                  {selectedEvent.event_type === 'inflow' ? <TrendingUp className="w-5 h-5" /> :
-                   selectedEvent.event_type === 'outflow' ? <TrendingDown className="w-5 h-5" /> :
-                   <ArrowRightLeft className="w-5 h-5" />}
+    <div className="space-y-6">
+      {/* Event Edit Drawer */}
+      <Sheet open={!!selectedEventId} onOpenChange={(open) => !open && setSelectedEventId(null)}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          {selectedEvent && (
+            <>
+              <SheetHeader className="mb-6">
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                    selectedEvent.event_type === 'inflow' ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400" :
+                    selectedEvent.event_type === 'outflow' ? "bg-rose-100 text-rose-600 dark:bg-rose-950 dark:text-rose-400" :
+                    "bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400"
+                  )}>
+                    {selectedEvent.event_type === 'inflow' ? <TrendingUp className="w-5 h-5" /> :
+                     selectedEvent.event_type === 'outflow' ? <TrendingDown className="w-5 h-5" /> :
+                     <ArrowRightLeft className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <SheetTitle>Edit Event</SheetTitle>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{selectedEvent.id}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-ink-900 leading-tight">Edit Event</h3>
-                  <p className="text-[10px] font-bold text-ink-400 uppercase tracking-wide">{selectedEvent.id}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedEventId(null)} 
-                className="p-2 bg-white rounded-full border border-ink-200 shadow-xs hover:bg-ink-100 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-5 overflow-y-auto flex-1">
+              </SheetHeader>
+              
               <EventDrawerForm 
                 event={selectedEvent} 
                 accounts={accounts} 
@@ -198,111 +218,113 @@ export const EventsManager: React.FC = () => {
                   setSelectedEventId(null);
                 }}
               />
-            </div>
-          </div>
-        </div>
-      )}
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* Header & Add Event */}
-      <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-xs">
-        <div className="flex items-center justify-between">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0 border-b border-border">
           <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-brand-500" />
-            <h2 className="text-base font-bold text-ink-900">Financial Events</h2>
+            <Calendar className="w-5 h-5 text-primary" />
+            <CardTitle className="text-base">Financial Events</CardTitle>
           </div>
-          <button
+          <Button
+            size="sm"
             onClick={() => setAddOpen(!addOpen)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-brand-500 hover:bg-brand-600 rounded-lg transition-all shadow-xs"
           >
-            <Plus className="w-4 h-4" />
-            <span>{addOpen ? 'Cancel' : 'Add Event'}</span>
-          </button>
-        </div>
+            <Plus className="w-4 h-4 mr-1.5" />
+            {addOpen ? 'Cancel' : 'Add Event'}
+          </Button>
+        </CardHeader>
 
-        {/* Add Form */}
         {addOpen && (
-          <form onSubmit={handleAddSubmit} className="mt-4 pt-4 border-t border-ink-200 space-y-4">
-             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-ink-400 uppercase mb-1">Event Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newEvent.name || ''}
-                  onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })}
-                  placeholder="e.g. Paycheque"
-                  className="w-full px-3 py-1.5 text-xs font-semibold text-ink-900 bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
-                />
-              </div>
+          <CardContent className="pt-4 pb-0 border-b border-border">
+            <form onSubmit={handleAddSubmit} className="space-y-4 mb-4">
+               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase">Event Name</label>
+                  <Input
+                    type="text"
+                    required
+                    value={newEvent.name || ''}
+                    onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })}
+                    placeholder="e.g. Paycheque"
+                    className="h-8 text-xs"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-ink-400 uppercase mb-1">Event Type</label>
-                <select
-                  value={newEvent.event_type}
-                  onChange={(e) => handleTypeChange(e.target.value as EventType)}
-                  className="w-full px-3 py-1.5 text-xs font-bold text-ink-900 bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
-                >
-                  <option value="inflow">INFLOW (+ Income)</option>
-                  <option value="outflow">OUTFLOW (− Bill)</option>
-                  <option value="transfer">TRANSFER</option>
-                </select>
-              </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase">Event Type</label>
+                  <select
+                    value={newEvent.event_type}
+                    onChange={(e) => handleTypeChange(e.target.value as EventType)}
+                    className="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="inflow">INFLOW (+ Income)</option>
+                    <option value="outflow">OUTFLOW (− Bill)</option>
+                    <option value="transfer">TRANSFER</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-ink-400 uppercase mb-1">Amount ($)</label>
-                <input
-                  type="number"
-                  step="any"
-                  required
-                  value={newEvent.amount ?? ''}
-                  onChange={(e) => setNewEvent({ ...newEvent, amount: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-1.5 text-xs font-semibold text-ink-900 bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
-                />
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase">Amount ($)</label>
+                  <Input
+                    type="number"
+                    step="any"
+                    required
+                    value={newEvent.amount ?? ''}
+                    onChange={(e) => setNewEvent({ ...newEvent, amount: parseFloat(e.target.value) || 0 })}
+                    className="h-8 text-xs"
+                  />
+                </div>
               </div>
-            </div>
-            
-            <button type="submit" className="px-4 py-2 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-lg transition-all shadow-xs">
-              Create and Edit Details
-            </button>
-          </form>
+              
+              <Button type="submit" size="sm">
+                Create and Edit Details
+              </Button>
+            </form>
+          </CardContent>
         )}
 
-        {/* Filters */}
-        <div className="mt-4 pt-4 border-t border-ink-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <Filter className="w-3.5 h-3.5 text-ink-400" />
-            <span className="font-bold text-ink-400 uppercase tracking-wider text-[10px]">Filter Types:</span>
-            {EVENT_TYPES.map((t) => (
-              <button
-                key={t}
-                onClick={() => toggleTypeFilter(t)}
-                className={clsx(
-                  "px-2.5 py-1 rounded-md font-semibold uppercase text-[10px] border transition-all",
-                  filterType.includes(t) ? 'bg-brand-50 text-brand-700 border-brand-200' : 'bg-ink-100 text-ink-400 border-ink-200'
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+        <CardContent className="pt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Filter Types:</span>
+              {EVENT_TYPES.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => toggleTypeFilter(t)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md font-semibold uppercase text-[10px] border transition-all",
+                    filterType.includes(t) ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-border'
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
 
-          <div className="flex items-center gap-1.5">
-            <span className="font-bold text-ink-400 uppercase tracking-wider text-[10px]">Status:</span>
-            {(['All', 'Active', 'Inactive'] as const).map((st) => (
-              <button
-                key={st}
-                onClick={() => setFilterStatus(st)}
-                className={clsx(
-                  "px-2.5 py-1 rounded-md font-semibold text-[10px] border transition-all",
-                  filterStatus === st ? 'bg-ink-900 text-white border-ink-900' : 'bg-ink-100 text-ink-500 border-ink-200'
-                )}
-              >
-                {st}
-              </button>
-            ))}
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Status:</span>
+              {(['All', 'Active', 'Inactive'] as const).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setFilterStatus(st)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md font-semibold text-[10px] border transition-all",
+                    filterStatus === st ? 'bg-foreground text-background border-foreground' : 'bg-muted text-muted-foreground border-border'
+                  )}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Events Grouped by Type */}
       <div className="space-y-8 pb-12">
@@ -312,17 +334,17 @@ export const EventsManager: React.FC = () => {
 
           return (
             <div key={type} className="space-y-3">
-              <h3 className="text-sm font-bold text-ink-900 flex items-center gap-2">
+              <h3 className="text-sm font-bold flex items-center gap-2">
                 {type === 'inflow' && <TrendingUp className="w-4 h-4 text-emerald-500" />}
                 {type === 'outflow' && <TrendingDown className="w-4 h-4 text-rose-500" />}
                 {type === 'transfer' && <ArrowRightLeft className="w-4 h-4 text-blue-500" />}
                 {EVENT_TYPE_LABELS[type]}
-                <span className="text-xs text-ink-400 font-normal ml-2">({typeEvents.length})</span>
+                <span className="text-xs text-muted-foreground font-normal ml-2">({typeEvents.length})</span>
               </h3>
               
-              <div className="bg-white border border-ink-200 rounded-xl shadow-xs overflow-hidden">
+              <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
                 <table className="w-full text-left text-sm whitespace-nowrap">
-                  <thead className="bg-ink-50 border-b border-ink-200">
+                  <thead className="bg-muted/50 border-b border-border">
                     <tr>
                       {renderSortableHeader('name', 'Name')}
                       {renderSortableHeader('amount', 'Amount', true)}
@@ -332,36 +354,33 @@ export const EventsManager: React.FC = () => {
                       <th className="px-4 py-3 w-10"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-ink-100">
+                  <tbody className="divide-y divide-border">
                     {typeEvents.map((evt) => (
                       <tr 
                         key={evt.id} 
                         onClick={() => setSelectedEventId(evt.id)}
-                        className="hover:bg-brand-50/50 cursor-pointer transition-colors group"
+                        className="hover:bg-muted/50 cursor-pointer transition-colors group"
                       >
-                        <td className="px-4 py-3 font-bold text-ink-900 flex items-center gap-2">
+                        <td className="px-4 py-3 font-bold flex items-center gap-2">
                           {evt.name}
-                          {evt.notes && <span title={evt.notes}><FileText className="w-3 h-3 text-brand-400 shrink-0" /></span>}
+                          {evt.notes && <span title={evt.notes}><FileText className="w-3 h-3 text-muted-foreground shrink-0" /></span>}
                         </td>
                         <td className="px-4 py-3 font-bold text-right">
-                          <span className={clsx(
-                            evt.event_type === 'inflow' ? "text-emerald-600" :
-                            evt.event_type === 'outflow' ? "text-rose-600" : "text-blue-600"
+                          <span className={cn(
+                            evt.event_type === 'inflow' ? "text-emerald-600 dark:text-emerald-500" :
+                            evt.event_type === 'outflow' ? "text-rose-600 dark:text-rose-500" : "text-blue-600 dark:text-blue-500"
                           )}>
                             ${evt.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-xs text-ink-500 font-semibold">{evt.frequency}</td>
-                        <td className="px-4 py-3 text-xs text-ink-500 font-semibold">{evt._nextDate}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground font-semibold">{evt.frequency}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground font-semibold">{evt._nextDate}</td>
                         <td className="px-4 py-3">
-                          <span className={clsx(
-                            "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
-                            evt.active ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                          )}>
+                          <Badge variant={evt.active ? "default" : "secondary"} className={evt.active ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/25 border-emerald-200 dark:border-emerald-800" : ""}>
                             {evt.active ? 'Active' : 'Inactive'}
-                          </span>
+                          </Badge>
                         </td>
-                        <td className="px-4 py-3 text-right text-ink-300 group-hover:text-brand-500">
+                        <td className="px-4 py-3 text-right text-muted-foreground group-hover:text-primary">
                           <ChevronRight className="w-4 h-4 ml-auto" />
                         </td>
                       </tr>
@@ -386,11 +405,16 @@ interface EventDrawerFormProps {
   onDelete: () => void;
 }
 
-const EventDrawerForm: React.FC<EventDrawerFormProps> = ({ event, accounts, onSave, onDelete }) => {
+  const EventDrawerForm: React.FC<EventDrawerFormProps> = ({ event, accounts, onSave, onDelete }) => {
   // Local state for auto-save text inputs
   const [localName, setLocalName] = useState(event.name);
   const [localAmount, setLocalAmount] = useState(event.amount.toString());
   const [localNotes, setLocalNotes] = useState(event.notes || '');
+
+  // Calibration state
+  const [calibrateOpen, setCalibrateOpen] = useState(false);
+  const [calSent, setCalSent] = useState('');
+  const [calLanded, setCalLanded] = useState('');
 
   useEffect(() => {
     setLocalName(event.name);
@@ -409,20 +433,20 @@ const EventDrawerForm: React.FC<EventDrawerFormProps> = ({ event, accounts, onSa
     <div className="space-y-6">
       {/* Basic Settings */}
       <div className="space-y-4">
-        <div>
-          <label className="block text-[10px] font-bold text-ink-400 uppercase mb-1">Event Name</label>
-          <input
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-muted-foreground uppercase">Event Name</label>
+          <Input
             type="text"
             value={localName}
             onChange={(e) => setLocalName(e.target.value)}
             onBlur={commitName}
-            className="w-full px-3 py-2 text-sm font-bold text-ink-900 bg-ink-50 border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+            className="font-bold"
           />
         </div>
 
-        <div className="flex gap-4">
-          <div className="w-1/2">
-            <label className="block text-[10px] font-bold text-ink-400 uppercase mb-1">Type</label>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase">Type</label>
             <select
               value={event.event_type}
               onChange={(e) => {
@@ -433,39 +457,39 @@ const EventDrawerForm: React.FC<EventDrawerFormProps> = ({ event, accounts, onSa
                   to_account_id: type === 'outflow' ? null : event.to_account_id,
                 });
               }}
-              className="w-full px-3 py-2 text-sm font-bold bg-ink-50 border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="inflow">INFLOW (+)</option>
               <option value="outflow">OUTFLOW (−)</option>
               <option value="transfer">TRANSFER (↔)</option>
             </select>
           </div>
-          <div className="w-1/2">
-            <label className="block text-[10px] font-bold text-ink-400 uppercase mb-1">Amount ($)</label>
-            <input
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase">Amount ($)</label>
+            <Input
               type="number"
               step="any"
               value={localAmount}
               onChange={(e) => setLocalAmount(e.target.value)}
               onBlur={commitAmount}
-              className="w-full px-3 py-2 text-sm font-bold text-ink-900 bg-ink-50 border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+              className="font-bold"
             />
           </div>
         </div>
       </div>
 
-      <hr className="border-ink-200" />
+      <hr className="border-border" />
 
       {/* Routing Settings */}
       <div className="space-y-4">
-        <h4 className="text-[11px] font-bold text-ink-400 uppercase tracking-wider">Routing</h4>
+        <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Routing</h4>
         {event.event_type !== 'inflow' && (
-          <div>
-            <label className="block text-xs font-semibold text-ink-600 mb-1">From Account (Source)</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold">From Account (Source)</label>
             <select
               value={event.from_account_id || ''}
               onChange={(e) => onSave({ from_account_id: e.target.value || null })}
-              className="w-full px-3 py-2 text-sm bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">-- Select Source --</option>
               {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -474,12 +498,12 @@ const EventDrawerForm: React.FC<EventDrawerFormProps> = ({ event, accounts, onSa
         )}
 
         {event.event_type !== 'outflow' && (
-          <div>
-            <label className="block text-xs font-semibold text-ink-600 mb-1">To Account (Destination)</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold">To Account (Destination)</label>
             <select
               value={event.to_account_id || ''}
               onChange={(e) => onSave({ to_account_id: e.target.value || null })}
-              className="w-full px-3 py-2 text-sm bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">-- Select Destination --</option>
               {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -488,52 +512,51 @@ const EventDrawerForm: React.FC<EventDrawerFormProps> = ({ event, accounts, onSa
         )}
       </div>
 
-      <hr className="border-ink-200" />
+      <hr className="border-border" />
 
       {/* Schedule Settings */}
       <div className="space-y-4">
-        <h4 className="text-[11px] font-bold text-ink-400 uppercase tracking-wider">Schedule & Execution</h4>
+        <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Schedule & Execution</h4>
         
-        <div className="flex gap-4">
-          <div className="w-1/2">
-            <label className="block text-xs font-semibold text-ink-600 mb-1">Frequency</label>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold">Frequency</label>
             <select
               value={event.frequency}
               onChange={(e) => onSave({ frequency: e.target.value as Frequency })}
-              className="w-full px-3 py-2 text-sm bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               {FREQUENCIES.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           </div>
-          <div className="w-1/2">
-            <label className="block text-xs font-semibold text-ink-600 mb-1">Anchor Date</label>
-            <input
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold">Anchor Date</label>
+            <Input
               type="date"
               value={event.anchor_date}
               onChange={(e) => onSave({ anchor_date: e.target.value })}
-              className="w-full px-3 py-2 text-sm bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
             />
           </div>
         </div>
 
-        <div className="flex gap-4">
-          <div className="w-1/2">
-            <label className="block text-xs font-semibold text-ink-600 mb-1">Execution Mode</label>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold">Execution Mode</label>
             <select
               value={event.execution || 'auto'}
               onChange={(e) => onSave({ execution: e.target.value as ExecutionType })}
-              className="w-full px-3 py-2 text-sm bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="auto">Auto</option>
               <option value="manual">Manual</option>
             </select>
           </div>
-          <div className="w-1/2">
-            <label className="block text-xs font-semibold text-ink-600 mb-1">Weekend Shift</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold">Weekend Shift</label>
             <select
               value={event.weekend_shift || 'none'}
               onChange={(e) => onSave({ weekend_shift: e.target.value as WeekendShift })}
-              className="w-full px-3 py-2 text-sm bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="none">None</option>
               <option value="previous_business_day">Prev Bus. Day</option>
@@ -543,40 +566,66 @@ const EventDrawerForm: React.FC<EventDrawerFormProps> = ({ event, accounts, onSa
         </div>
 
         {event.event_type === 'transfer' && (
-          <div>
-            <label className="block text-xs font-semibold text-brand-600 mb-1">Clearing Delay (Business Days)</label>
-            <input
-              type="number"
-              min="0"
-              max="30"
-              value={event.clearing_days ?? 0}
-              onChange={(e) => onSave({ clearing_days: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 text-sm bg-white border border-brand-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"
-            />
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-primary">Clearing Delay (Business Days)</label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min="0"
+                max="30"
+                value={event.clearing_days ?? 0}
+                onChange={(e) => onSave({ clearing_days: parseInt(e.target.value) || 0 })}
+              />
+              <Button variant="outline" size="sm" onClick={() => setCalibrateOpen(!calibrateOpen)}>Calibrate</Button>
+            </div>
+            {calibrateOpen && (
+              <div className="p-3 mt-2 bg-muted rounded-md text-sm space-y-3">
+                <p className="text-muted-foreground text-xs leading-tight">When did the transfer leave and land?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground">Sent Date</label>
+                    <Input type="date" className="h-8 text-xs" value={calSent} onChange={e => setCalSent(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground">Landed Date</label>
+                    <Input type="date" className="h-8 text-xs" value={calLanded} onChange={e => setCalLanded(e.target.value)} />
+                  </div>
+                </div>
+                {calSent && calLanded && (
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+                    <span className="text-xs">Suggested: <strong>{getBusinessDaysBetween(calSent, calLanded)} days</strong></span>
+                    <Button size="sm" className="h-7 text-xs" onClick={() => { 
+                      onSave({ clearing_days: getBusinessDaysBetween(calSent, calLanded) }); 
+                      setCalibrateOpen(false); 
+                    }}>Apply</Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      <hr className="border-ink-200" />
+      <hr className="border-border" />
 
       {/* Meta */}
       <div className="space-y-4">
-        <div>
-          <label className="block text-[10px] font-bold text-ink-400 uppercase mb-1">Notes</label>
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-muted-foreground uppercase">Notes</label>
           <textarea
             rows={2}
             value={localNotes}
             onChange={(e) => setLocalNotes(e.target.value)}
             onBlur={commitNotes}
             placeholder="Add context or notes..."
-            className="w-full px-3 py-2 text-sm bg-ink-50 border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none resize-none"
+            className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none"
           />
         </div>
 
-        <div className="flex items-center justify-between p-4 bg-ink-50 rounded-lg border border-ink-200">
+        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border">
           <div>
-            <p className="text-sm font-bold text-ink-900">Event Status</p>
-            <p className="text-xs text-ink-500">Enable or disable this event temporarily.</p>
+            <p className="text-sm font-bold">Event Status</p>
+            <p className="text-xs text-muted-foreground">Enable or disable this event temporarily.</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input 
@@ -585,17 +634,18 @@ const EventDrawerForm: React.FC<EventDrawerFormProps> = ({ event, accounts, onSa
               checked={event.active} 
               onChange={(e) => onSave({ active: e.target.checked })}
             />
-            <div className="w-9 h-5 bg-ink-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-ink-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+            <div className="w-9 h-5 bg-muted-foreground/30 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
           </label>
         </div>
 
-        <button
+        <Button
+          variant="destructive"
           onClick={onDelete}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors mt-6"
+          className="w-full mt-6"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-4 h-4 mr-2" />
           Delete Event
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
 # Payday Planner 💸
 
-A modern, local-first web application for household financial modeling and cashflow forecasting. 
+A modern, local-first web application for household financial modeling and cashflow forecasting, powered by an onboard AI extraction engine.
 
-Model your income, recurring bills, mortgages, and transfers to simulate your daily balances up to 180 days into the future. Generate LLM-optimized blueprints and analyze your spending habits securely. Your data never leaves your computer.
+Model your income, recurring bills, mortgages, and transfers to simulate your daily balances up to 180 days into the future. Generate LLM-optimized blueprints, natively parse your CSV statements using the AI engine, and analyze your spending habits with an omniscient in-app assistant.
 
 ---
 
@@ -10,9 +10,18 @@ Model your income, recurring bills, mortgages, and transfers to simulate your da
 
 - 📈 **Cashflow Projections**: Simulate your balances and view interactive Recharts timelines tracking Net Worth, Liquid Assets, and Debt.
 - 🚨 **Smart Alerts**: Automatically flag critical overdraft risks and target floor dips into readable "Alert Episodes".
-- 💸 **Spending Analysis**: Drag-and-drop credit card CSVs (AMEX, Rogers, PC Financial, Tangerine) to instantly clean, aggregate, and format your transactions for LLM-assisted budget reviews.
-- ⚡ **LLM Integration**: Update live balances and instantly copy a minified JSON blueprint (along with spending data) to feed directly into ChatGPT or Claude for personal financial advice.
+- 🤖 **AI-Powered CSV Extraction**: Forget brittle bank profiles. Drag-and-drop any bank CSV, and the AI Extraction Engine will natively parse, clean, and aggregate your transactions into a unified format.
+- 💬 **Omniscient AI Assistant**: Chat with a built-in financial advisor that holds your live JSON blueprint and recent spending summaries in its context. Get instant feedback on budget constraints and hypothetical purchases right inside the app.
+- 🧠 **Bring Your Own Model (BYOM)**: Built-in Provider Hub. Connect to a local Ollama instance for 100% private local processing, or plug in your API keys for OpenAI, Anthropic, and Google Gemini.
 - 🎨 **Money Flow Diagrams**: Auto-generate interactive Mermaid architecture diagrams of your entire household cashflow.
+
+---
+
+## 🏗️ Architecture
+
+Payday Planner is split into a lightning-fast React frontend and a Python backend to handle LLM orchestration.
+- **Frontend**: React + Vite + Tailwind CSS + Zustand
+- **Backend**: Python + FastAPI + LiteLLM
 
 ---
 
@@ -20,33 +29,49 @@ Model your income, recurring bills, mortgages, and transfers to simulate your da
 
 ### Prerequisites
 - Node.js (v18+)
+- Python 3.10+
 - npm or yarn
+- (Optional) [Ollama](https://ollama.com) running locally for 100% private offline AI parsing.
 
 ### Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/rafvasq/payday-planner.git
    cd payday-planner
    ```
 
-2. Install dependencies & run:
+2. **Start the FastAPI Backend:**
+   ```bash
+   cd backend
+   python -m venv venv
+   # On Windows: venv\Scripts\activate
+   # On Mac/Linux: source venv/bin/activate
+   pip install -e .
+   uvicorn app.main:app --reload
+   ```
+
+3. **Start the Vite Frontend:**
+   Open a new terminal window at the project root (`payday-planner/`):
    ```bash
    npm install
    npm run dev
    ```
 
-3. Open your browser at `http://localhost:5173`. Alternatively, use your local `start_payday.bat` shortcut on Windows.
+4. **Access the App:**
+   Open your browser at `http://localhost:5173`. 
+   *Head to the **Settings** (Provider Hub) to configure your desired AI model.*
 
 ---
 
 ## 🔒 Security & Privacy
 
-- **100% Local**: All computations and storage happen entirely in your local browser (`localStorage`). No external APIs or servers.
-- **Git Safety**: `.gitignore` strictly protects your personal `*.blueprint.json` backups and local start scripts.
+- **Local-First Configurations**: Your financial blueprints are stored securely in your browser's `localStorage`.
+- **Secure Key Storage**: Cloud API keys (OpenAI, Anthropic, Gemini) are stored securely in your operating system's native credential manager (via `keyring`), not in plain text.
+- **Git Safety**: `.gitignore` strictly protects your personal `.env` files and `.blueprint.json` backups.
 
 ---
 
 ## 📄 License
 
-MIT License. See [LICENSE](file:///c:/Users/Rafael/workspace/repos/payday-planner/LICENSE) for details.
+MIT License. See [LICENSE](./LICENSE) for details.

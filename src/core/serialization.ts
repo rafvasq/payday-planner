@@ -141,6 +141,8 @@ export function jsonToBlueprint(rawStr: string): Blueprint {
     throw new Error(`Invalid JSON format: ${err.message}`);
   }
 
+  const needsRecovery = parsed.version === 2;
+
   // Pre-process accounts & events to strip legacy fields or set defaults
   if (parsed.accounts && Array.isArray(parsed.accounts)) {
     parsed.accounts = parsed.accounts.map((a: any) => {
@@ -152,6 +154,10 @@ export function jsonToBlueprint(rawStr: string): Blueprint {
       for (const [k, v] of Object.entries(a)) {
         if (allowed.has(k)) clean[k] = v;
       }
+      if (needsRecovery) {
+        if (typeof clean.balance === 'number') clean.balance = clean.balance / 100;
+        if (typeof clean.target_floor === 'number') clean.target_floor = clean.target_floor / 100;
+      }
       return clean;
     });
   }
@@ -159,6 +165,9 @@ export function jsonToBlueprint(rawStr: string): Blueprint {
   if (parsed.events && Array.isArray(parsed.events)) {
     parsed.events = parsed.events.map((e: any) => {
       const { next_occurrence, ...rest } = e;
+      if (needsRecovery) {
+        if (typeof rest.amount === 'number') rest.amount = rest.amount / 100;
+      }
       return rest;
     });
   }

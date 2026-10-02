@@ -120,14 +120,30 @@ export function aggregateTransactions(
   filtered.sort((a, b) => a.date.getTime() - b.date.getTime());
 
   let absoluteTotal = 0;
-  let md = '| Date | Card | Merchant | Amount |\n|---|---|---|---|\n';
+  const hasAnyCard = filtered.some(t => t.card && t.card.trim() !== '' && t.card.trim() !== 'Unknown');
+  
+  let md = '';
+  if (hasAnyCard) {
+    md = '| Date | Card | Merchant | Amount |\n|---|---|---|---|\n';
+  } else {
+    md = '| Date | Merchant | Amount |\n|---|---|---|\n';
+  }
   
   for (const t of filtered) {
     absoluteTotal += t.amount;
     const dateStr = format(t.date, 'yyyy-MM-dd');
-    md += `| ${dateStr} | ${t.card} | ${t.merchant} | $${t.amount.toFixed(2)} |\n`;
+    if (hasAnyCard) {
+      md += `| ${dateStr} | ${t.card || 'Unknown'} | ${t.merchant} | $${t.amount.toFixed(2)} |\n`;
+    } else {
+      md += `| ${dateStr} | ${t.merchant} | $${t.amount.toFixed(2)} |\n`;
+    }
   }
-  md += `| **TOTAL** | | | **$${absoluteTotal.toFixed(2)}** |\n`;
+  
+  if (hasAnyCard) {
+    md += `| **TOTAL** | | | **$${absoluteTotal.toFixed(2)}** |\n`;
+  } else {
+    md += `| **TOTAL** | | **$${absoluteTotal.toFixed(2)}** |\n`;
+  }
 
   return { markdown: md, total: absoluteTotal };
 }

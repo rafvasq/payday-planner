@@ -3,6 +3,7 @@ import {
   advanceMonth,
   advanceQuarter,
   addBusinessDays,
+  applyWeekendShift,
   getOccurrences,
   nextOccurrence,
   buildCalendar,
@@ -77,16 +78,16 @@ describe('Calendar Engine', () => {
     const eMonthly = makeEvent('monthly', '2026-01-01');
     const resMonthly = getOccurrences(eMonthly, '2026-01-01', '2026-06-30');
     expect(resMonthly.length).toBe(6);
-    expect(resMonthly[0]).toBe('2026-01-01');
+    expect(resMonthly[0]).toBe('2026-01-02'); // Jan 1 is New Year's Day (Payments Canada holiday) → shifts to Jan 2
     expect(resMonthly[5]).toBe('2026-06-01');
   });
 
   it('getOccurrences: quarterly and annual', () => {
     const eQ = makeEvent('quarterly', '2026-01-01');
     expect(getOccurrences(eQ, '2026-01-01', '2026-12-31')).toEqual([
-      '2026-01-01',
+      '2026-01-02', // Jan 1 is New Year's Day → Jan 2
       '2026-04-01',
-      '2026-07-01',
+      '2026-07-02', // Jul 1 is Canada Day → Jul 2
       '2026-10-01',
     ]);
 
@@ -114,7 +115,7 @@ describe('Calendar Engine', () => {
   it('getOccurrences: end_date capping and inactive status', () => {
     const eCap = makeEvent('monthly', '2026-01-01', { end_date: '2026-03-31' });
     expect(getOccurrences(eCap, '2026-01-01', '2026-12-31')).toEqual([
-      '2026-01-01',
+      '2026-01-02', // Jan 1 is New Year's Day → Jan 2
       '2026-02-01',
       '2026-03-01',
     ]);
@@ -521,5 +522,184 @@ describe('Guilt-Free Spending Buffer Calculation', () => {
       if (e.from_account_id) expect(accountIds.has(e.from_account_id)).toBe(true);
       if (e.to_account_id) expect(accountIds.has(e.to_account_id)).toBe(true);
     }
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Sequence 1 Golden Path: Payments Canada Holiday Calendar Tests
+// ────────────────────────────────────────────────────────────────────────
+
+import {
+  isPaymentsCanadaHoliday,
+  isNonBusinessDay,
+  getHolidayCalendarCoverage,
+  isCalendarCovered,
+  getUncoveredYears,
+} from '../holidays';
+
+describe('Payments Canada Holiday Calendar', () => {
+  it('correctly identifies 2026 Payments Canada holidays', () => {
+    expect(isPaymentsCanadaHoliday('2026-01-01')).toBe(true);  // New Year's
+    expect(isPaymentsCanadaHoliday('2026-02-16')).toBe(true);  // Family Day
+    expect(isPaymentsCanadaHoliday('2026-04-03')).toBe(true);  // Good Friday
+    expect(isPaymentsCanadaHoliday('2026-05-18')).toBe(true);  // Victoria Day
+    expect(isPaymentsCanadaHoliday('2026-07-01')).toBe(true);  // Canada Day
+    expect(isPaymentsCanadaHoliday('2026-09-07')).toBe(true);  // Labour Day
+    expect(isPaymentsCanadaHoliday('2026-10-12')).toBe(true);  // Thanksgiving
+    expect(isPaymentsCanadaHoliday('2026-11-11')).toBe(true);  // Remembrance Day
+    expect(isPaymentsCanadaHoliday('2026-12-25')).toBe(true);  // Christmas
+    expect(isPaymentsCanadaHoliday('2026-12-28')).toBe(true);  // Boxing Day (observed)
+  });
+
+  it('Sept 30 (Truth and Reconciliation) is NOT a Payments Canada holiday in 2026', () => {
+    // National Day for Truth and Reconciliation is a federal statutory holiday
+    // but is NOT a Payments Canada settlement holiday. Settlements proceed normally.
+    // Source: Payments Canada published schedule.
+    expect(isPaymentsCanadaHoliday('2026-09-30')).toBe(false);
+  });
+
+  it('isNonBusinessDay returns true for weekends AND holidays', () => {
+    // Saturday
+    expect(isNonBusinessDay(new Date(2026, 0, 3))).toBe(true);   // Jan 3 2026 = Saturday
+    // Sunday
+    expect(isNonBusinessDay(new Date(2026, 0, 4))).toBe(true);   // Jan 4 2026 = Sunday
+    // Holiday on a weekday
+    expect(isNonBusinessDay(new Date(2026, 10, 11))).toBe(true);  // Nov 11 2026 = Wednesday
+    // Normal weekday
+    expect(isNonBusinessDay(new Date(2026, 0, 5))).toBe(false);  // Jan 5 2026 = Monday
+  });
+
+  it('calendar coverage boundary guard works correctly', () => {
+    const coverage = getHolidayCalendarCoverage();
+    expect(coverage.minYear).toBe(2025);
+    expect(coverage.maxYear).toBe(2027);
+
+    expect(isCalendarCovered(2025, 2027)).toBe(true);
+    expect(isCalendarCovered(2025, 2028)).toBe(false);
+    expect(getUncoveredYears(2025, 2029)).toEqual([2028, 2029]);
+  });
+});
+
+describe('Holiday-Aware Business Day Math', () => {
+  it('addBusinessDays skips Thanksgiving Monday (Oct 12, 2026)', () => {
+    // 2026-10-09 is Friday. Adding 1 business day should skip
+    // Sat Oct 10, Sun Oct 11, Mon Oct 12 (Thanksgiving) → lands on Tue Oct 13.
+    const fri = new Date(2026, 9, 9); // Oct 9, 2026
+    const result = addBusinessDays(fri, 1);
+    expect(result.getFullYear()).toBe(2026);
+    expect(result.getMonth()).toBe(9);
+    expect(result.getDate()).toBe(13); // Tuesday
+  });
+
+  it('Fixture A: Oct 8 transfer lands Oct 14 at 3 business days (Thanksgiving delay)', () => {
+    // Oct 8 (Thursday) + 3 business days:
+    //   Day 1: Oct 9 (Friday) ✓
+    //   Day 2: Oct 13 (Tuesday, skips Sat/Sun/Thanksgiving Monday) ✓
+    //   Day 3: Oct 14 (Wednesday) ✓
+    const oct8 = new Date(2026, 9, 8);
+    const result = addBusinessDays(oct8, 3);
+    expect(result.getFullYear()).toBe(2026);
+    expect(result.getMonth()).toBe(9);
+    expect(result.getDate()).toBe(14);
+  });
+
+  it('Fixture B: Oct 8 transfer lands Oct 13 at 2 business days (Thanksgiving delay)', () => {
+    // Oct 8 (Thursday) + 2 business days:
+    //   Day 1: Oct 9 (Friday) ✓
+    //   Day 2: Oct 13 (Tuesday, skips Sat/Sun/Thanksgiving Monday) ✓
+    const oct8 = new Date(2026, 9, 8);
+    const result = addBusinessDays(oct8, 2);
+    expect(result.getFullYear()).toBe(2026);
+    expect(result.getMonth()).toBe(9);
+    expect(result.getDate()).toBe(13);
+  });
+
+  it('applyWeekendShift with previous_business_day skips holidays walking backward', () => {
+    // 2026-10-12 is Thanksgiving Monday.
+    // previous_business_day should walk back to Friday Oct 9.
+    const thanksgivingMon = new Date(2026, 9, 12);
+    const result = applyWeekendShift(thanksgivingMon, 'previous_business_day');
+    expect(result.getDate()).toBe(9);
+    expect(result.getMonth()).toBe(9);
+  });
+
+  it('applyWeekendShift with next_business_day skips holidays walking forward', () => {
+    // 2026-10-12 is Thanksgiving Monday.
+    // next_business_day should walk forward to Tuesday Oct 13.
+    const thanksgivingMon = new Date(2026, 9, 12);
+    const result = applyWeekendShift(thanksgivingMon, 'next_business_day');
+    expect(result.getDate()).toBe(13);
+    expect(result.getMonth()).toBe(9);
+  });
+
+  it('applyWeekendShift with none shifts holidays to next business day (global default)', () => {
+    // 2026-10-12 is Thanksgiving Monday.
+    // weekend_shift='none' should still shift holidays → Tuesday Oct 13.
+    const thanksgivingMon = new Date(2026, 9, 12);
+    const result = applyWeekendShift(thanksgivingMon, 'none');
+    expect(result.getDate()).toBe(13);
+    expect(result.getMonth()).toBe(9);
+  });
+
+  it('applyWeekendShift with none does NOT shift weekends (preserves existing behavior)', () => {
+    // 2026-10-10 is Saturday. weekend_shift='none' should NOT shift it.
+    const sat = new Date(2026, 9, 10);
+    const result = applyWeekendShift(sat, 'none');
+    expect(result.getDate()).toBe(10); // stays on Saturday
+  });
+
+  it('Sept 30 2026 is a normal business day (not shifted)', () => {
+    // Sept 30, 2026 is a Wednesday and NOT a Payments Canada holiday.
+    // Events should fire on Sept 30 as expected.
+    const sept30 = new Date(2026, 8, 30);
+    expect(isNonBusinessDay(sept30)).toBe(false);
+    const shifted = applyWeekendShift(sept30, 'none');
+    expect(shifted.getDate()).toBe(30);
+  });
+});
+
+
+describe('Sequence 1: Tactical Assistant Plan Assertions', () => {
+  it('Balance Assertions: Sept 30 transfers', () => {
+    const accounts: Account[] = [
+      { id: 'hub', name: 'Hub', type: 'chequing', owner: 'joint', balance: 701559 }
+    ];
+    // Outflow on Sept 30 of ,803.91 (Condo Fees + other bills to reach .68 base)
+    const events: Event[] = [
+      makeEvent('one-time', '2026-09-30', { amount: 380391, event_type: 'outflow', from_account_id: 'hub', to_account_id: null }),
+      makeEvent('one-time', '2026-09-30', { id: 'transfer_3330', amount: 333000, event_type: 'outflow', from_account_id: 'hub', to_account_id: null })
+    ];
+
+    const result3330 = projectBalances(accounts, events, '2026-09-28', '2026-10-05');
+    const sept30_3330 = result3330.find(p => p.date === '2026-09-30');
+    expect(sept30_3330?.balances['hub']).toBe(-11832);
+
+    events[1].amount = 310000;
+    const result3100 = projectBalances(accounts, events, '2026-09-28', '2026-10-05');
+    const sept30_3100 = result3100.find(p => p.date === '2026-09-30');
+    expect(sept30_3100?.balances['hub']).toBe(11168);
+  });
+
+  it('Simulation Fixture (Fixture C): Pin 159032 on Oct 2', () => {
+    const accounts: Account[] = [
+      { id: 'hub', name: 'Hub', type: 'chequing', owner: 'joint', balance: 701559 }
+    ];
+    const events: Event[] = [
+      makeEvent('one-time', '2026-09-28', { id: 'pay_debt_3300', amount: 330000, event_type: 'outflow', from_account_id: 'hub' }),
+      makeEvent('one-time', '2026-10-01', { id: 'oct1_sweep1', amount: 10000, event_type: 'outflow', from_account_id: 'hub' }),
+      makeEvent('one-time', '2026-10-01', { id: 'oct1_sweep2', amount: 20000, event_type: 'outflow', from_account_id: 'hub' }),
+      makeEvent('one-time', '2026-10-02', { id: 'mortgage', amount: 134896, event_type: 'outflow', from_account_id: 'hub' }),
+      makeEvent('one-time', '2026-10-02', { id: 'cc_sweep', amount: 77631, event_type: 'outflow', from_account_id: 'hub' }),
+    ];
+
+    const result = projectBalances(accounts, events, '2026-09-28', '2026-10-05', {
+      executedEvents: {
+        '2026-10-01_oct1_sweep1': true,
+        '2026-10-01_oct1_sweep2': true
+      }
+    });
+
+    const oct2 = result.find(p => p.date === '2026-10-02');
+    expect(oct2?.balances['hub']).toBe(159032);
   });
 });

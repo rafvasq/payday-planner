@@ -2,6 +2,18 @@ import React, { useState } from 'react';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { Download, Upload, Copy, Check, FileSpreadsheet, RefreshCw } from 'lucide-react';
 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+
 export const ExportImport: React.FC = () => {
   const { accounts, events, getBlueprintJson, importBlueprintJson, resetToDefaults } =
     usePlannerStore();
@@ -75,158 +87,167 @@ export const ExportImport: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl">
       {/* Export Section */}
-      <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-ink-900">Export Blueprint JSON</h2>
-            <p className="text-xs text-ink-400">
-              Sparse, token-optimized JSON — paste directly into Gemini context
-            </p>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div className="space-y-1.5">
+            <CardTitle>Export Blueprint JSON</CardTitle>
+            <CardDescription>
+              Sparse, token-optimized JSON — paste directly into LLM context
+            </CardDescription>
           </div>
-
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-lg transition-colors"
+              className={copied ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : ''}
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Copied to Clipboard!' : 'Copy JSON'}</span>
-            </button>
-
-            <button
-              onClick={handleDownloadJson}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-lg transition-colors shadow-xs"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download JSON</span>
-            </button>
+              {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+              {copied ? 'Copied!' : 'Copy JSON'}
+            </Button>
+            <Button size="sm" onClick={handleDownloadJson}>
+              <Download className="mr-2 h-4 w-4" />
+              Download JSON
+            </Button>
           </div>
-        </div>
-
-        {/* Format Options */}
-        <div className="flex items-center gap-4 pt-1 text-xs">
-          <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-ink-700 select-none">
-            <input
-              type="checkbox"
-              checked={minified}
-              onChange={(e) => setMinified(e.target.checked)}
-              className="rounded text-brand-500 focus:ring-brand-500"
-            />
-            <span>Minified Single-Line (Save ~25% tokens)</span>
-          </label>
-
-          <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-ink-700 select-none">
-            <input
-              type="checkbox"
-              checked={compactIds}
-              onChange={(e) => setCompactIds(e.target.checked)}
-              className="rounded text-brand-500 focus:ring-brand-500"
-            />
-            <span>Compress Long UUIDs (Save ~30 chars/item)</span>
-          </label>
-        </div>
-
-        <textarea
-          readOnly
-          value={blueprintJson}
-          rows={minified ? 5 : 10}
-          className="w-full p-3 font-mono text-xs text-ink-800 bg-ink-100/50 border border-ink-200 rounded-lg focus:outline-none"
-        />
-      </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="minified"
+                checked={minified}
+                onCheckedChange={(c) => setMinified(!!c)}
+              />
+              <label
+                htmlFor="minified"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Minified Single-Line
+              </label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="compact"
+                checked={compactIds}
+                onCheckedChange={(c) => setCompactIds(!!c)}
+              />
+              <label
+                htmlFor="compact"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Compress Long UUIDs
+              </label>
+            </div>
+          </div>
+          <textarea
+            readOnly
+            value={blueprintJson}
+            rows={minified ? 5 : 10}
+            className="w-full p-3 font-mono text-xs text-foreground bg-muted border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </CardContent>
+      </Card>
 
       {/* Import Section */}
-      <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-xs space-y-4">
-        <div>
-          <h2 className="text-base font-bold text-ink-900">Import Blueprint JSON</h2>
-          <p className="text-xs text-ink-400">
+      <Card>
+        <CardHeader>
+          <CardTitle>Import Blueprint JSON</CardTitle>
+          <CardDescription>
             Upload a blueprint.json file or paste raw JSON to restore your accounts & events
-          </p>
-        </div>
-
-        {importMessage && (
-          <div
-            className={`p-3 rounded-lg text-xs font-semibold ${
-              importMessage.type === 'success'
-                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                : 'bg-rose-50 text-rose-800 border border-rose-200'
-            }`}
-          >
-            {importMessage.text}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="p-4 border-2 border-dashed border-ink-200 rounded-xl text-center bg-ink-100/20 hover:bg-ink-100/50 transition-colors flex flex-col items-center justify-center space-y-2">
-            <Upload className="w-6 h-6 text-brand-500" />
-            <span className="text-xs font-semibold text-ink-700">
-              Upload blueprint.json file
-            </span>
-            <input
-              type="file"
-              accept=".json"
-              onChange={handleFileUpload}
-              className="text-xs text-ink-400 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <textarea
-              placeholder="Or paste blueprint JSON string here..."
-              value={pasteInput}
-              onChange={(e) => setPasteInput(e.target.value)}
-              rows={4}
-              className="w-full p-2.5 text-xs font-mono bg-white border border-ink-200 rounded-lg focus:ring-2 focus:ring-brand-500"
-            />
-            <button
-              onClick={() => handleImport(pasteInput)}
-              disabled={!pasteInput.trim()}
-              className="w-full py-2 text-xs font-bold text-white bg-ink-900 hover:bg-ink-800 disabled:opacity-50 rounded-lg transition-colors"
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {importMessage && (
+            <div
+              className={`p-3 rounded-md text-sm font-medium ${
+                importMessage.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800'
+                  : 'bg-destructive/10 text-destructive border border-destructive/20'
+              }`}
             >
-              Import Pasted JSON
-            </button>
+              {importMessage.text}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col items-center justify-center space-y-4 p-6 border-2 border-dashed border-border rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+              <Upload className="h-8 w-8 text-muted-foreground" />
+              <div className="text-sm font-medium text-center">
+                Upload blueprint.json file
+              </div>
+              <Input
+                type="file"
+                accept=".json"
+                onChange={handleFileUpload}
+                className="max-w-[200px] cursor-pointer"
+              />
+            </div>
+
+            <div className="flex flex-col space-y-3">
+              <textarea
+                placeholder="Or paste blueprint JSON string here..."
+                value={pasteInput}
+                onChange={(e) => setPasteInput(e.target.value)}
+                rows={5}
+                className="w-full p-3 font-mono text-xs bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              />
+              <Button
+                variant="secondary"
+                disabled={!pasteInput.trim()}
+                onClick={() => handleImport(pasteInput)}
+                className="w-full"
+              >
+                Import Pasted JSON
+              </Button>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* CSV Exports & Reset */}
-      <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h3 className="text-sm font-bold text-ink-900">CSV Downloads & Reset</h3>
-          <p className="text-xs text-ink-400">Export spreadsheet tables or reset state to default template</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => downloadCsv('accounts.csv', accounts)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-ink-700 bg-ink-100 hover:bg-ink-200 rounded-lg transition-colors"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>accounts.csv</span>
-          </button>
-
-          <button
-            onClick={() => downloadCsv('events.csv', events)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-ink-700 bg-ink-100 hover:bg-ink-200 rounded-lg transition-colors"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>events.csv</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (confirm('Reset all members, accounts, and events to default template?')) {
-                resetToDefaults();
-              }
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Reset Defaults</span>
-          </button>
-        </div>
-      </div>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div className="space-y-1.5">
+            <CardTitle>CSV Downloads & Reset</CardTitle>
+            <CardDescription>
+              Export spreadsheet tables or reset state to default template
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadCsv('accounts.csv', accounts)}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              accounts.csv
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadCsv('events.csv', events)}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              events.csv
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (confirm('Reset all members, accounts, and events to default template?')) {
+                  resetToDefaults();
+                }
+              }}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Reset Defaults
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
     </div>
   );
 };
