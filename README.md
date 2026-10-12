@@ -1,77 +1,80 @@
-# Payday Planner 💸
+# Payday Planner
 
-A modern, local-first web application for household financial modeling and cashflow forecasting, powered by an onboard AI extraction engine.
+A local-first application for cashflow forecasting and household financial modeling. It projects account balances over time, tracks scheduled bills and income events, and provides LLM-assisted transaction parsing and plan simulations.
 
-Model your income, recurring bills, mortgages, and transfers to simulate your daily balances up to 180 days into the future. Generate LLM-optimized blueprints, natively parse your CSV statements using the AI engine, and analyze your spending habits with an omniscient in-app assistant.
+## Features
 
----
+- **Cashflow Projections**: Calculates daily balances across accounts up to 180 days ahead, tracking net worth, liquid balances, debt, and floor breach risks.
+- **Event Scheduling & Checklist**: Manages recurring income, expenses, debt payments, and transfers with date execution tracking.
+- **CSV Statement Parsing**: Parses and categorizes bank transaction CSV files using LLM-assisted extraction.
+- **Chat Interface & Scenario Simulation**: Conversational interface with tool calling (`simulate`, `propose_blueprint_changes`) to evaluate hypotheticals, compare projection diffs, and apply changes with undo support.
+- **Model Providers**: Supports local models via Ollama as well as OpenAI, Anthropic, Google Gemini, and OpenRouter.
+- **Cashflow Diagrams**: Visualizes household account and transfer topologies using Mermaid.
 
-## ✨ Core Features
+## Architecture
 
-- 📈 **Cashflow Projections**: Simulate your balances and view interactive Recharts timelines tracking Net Worth, Liquid Assets, and Debt.
-- 🚨 **Smart Alerts**: Automatically flag critical overdraft risks and target floor dips into readable "Alert Episodes".
-- 🤖 **AI-Powered CSV Extraction**: Forget brittle bank profiles. Drag-and-drop any bank CSV, and the AI Extraction Engine will natively parse, clean, and aggregate your transactions into a unified format.
-- 💬 **Omniscient AI Assistant**: Chat with a built-in financial advisor that holds your live JSON blueprint and recent spending summaries in its context. Get instant feedback on budget constraints and hypothetical purchases right inside the app.
-- 🧠 **Bring Your Own Model (BYOM)**: Built-in Provider Hub. Connect to a local Ollama instance for 100% private local processing, or plug in your API keys for OpenAI, Anthropic, and Google Gemini.
-- 🎨 **Money Flow Diagrams**: Auto-generate interactive Mermaid architecture diagrams of your entire household cashflow.
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Zustand, Recharts.
+- **Backend**: Python 3.10+, FastAPI, LiteLLM, Keyring, Pydantic.
 
----
-
-## 🏗️ Architecture
-
-Payday Planner is split into a lightning-fast React frontend and a Python backend to handle LLM orchestration.
-- **Frontend**: React + Vite + Tailwind CSS + Zustand
-- **Backend**: Python + FastAPI + LiteLLM
-
----
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- Node.js (v18+)
+
+- Node.js 18+
 - Python 3.10+
-- npm or yarn
-- (Optional) [Ollama](https://ollama.com) running locally for 100% private offline AI parsing.
 
-### Installation
+### Backend Setup
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/rafvasq/payday-planner.git
-   cd payday-planner
-   ```
+```bash
+cd backend
+python -m venv venv
 
-2. **Start the FastAPI Backend:**
-   ```bash
-   cd backend
-   python -m venv venv
-   # On Windows: venv\Scripts\activate
-   # On Mac/Linux: source venv/bin/activate
-   pip install -e .
-   uvicorn app.main:app --reload
-   ```
+# Windows
+venv\Scripts\activate
 
-3. **Start the Vite Frontend:**
-   Open a new terminal window at the project root (`payday-planner/`):
-   ```bash
-   npm install
-   npm run dev
-   ```
+# macOS / Linux
+source venv/bin/activate
 
-4. **Access the App:**
-   Open your browser at `http://localhost:5173`. 
-   *Head to the **Settings** (Provider Hub) to configure your desired AI model.*
+pip install -e .
+uvicorn app.main:app --reload
+```
 
----
+The backend runs on `http://localhost:8000`.
 
-## 🔒 Security & Privacy
+### Frontend Setup
 
-- **Local-First Configurations**: Your financial blueprints are stored securely in your browser's `localStorage`.
-- **Secure Key Storage**: Cloud API keys (OpenAI, Anthropic, Gemini) are stored securely in your operating system's native credential manager (via `keyring`), not in plain text.
-- **Git Safety**: `.gitignore` strictly protects your personal `.env` files and `.blueprint.json` backups.
+In a separate terminal at the project root:
 
----
+```bash
+npm install
+npm run dev
+```
 
-## 📄 License
+The frontend runs on `http://localhost:5173`. Configure provider credentials under the Provider Settings view.
+
+### Running Tests
+
+Frontend:
+```bash
+npm test
+```
+
+Backend:
+```bash
+pytest backend/tests
+```
+
+Production build:
+```bash
+npm run build
+```
+
+## Security & Storage
+
+- Plan blueprints and application state are stored in the browser's `localStorage`.
+- Provider API keys are stored in the operating system's native credential manager via `keyring` and are not written to disk files or transmitted back to the client.
+- Local API requests are guarded by an `X-Local-Auth-Token` header.
+
+## License
 
 MIT License. See [LICENSE](./LICENSE) for details.

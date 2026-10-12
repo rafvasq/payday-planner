@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from '@/lib/utils';
 
 const OpenAIIcon = (props: any) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -178,62 +179,70 @@ export const ProviderSettings: React.FC = () => {
   return (
     <div className="w-full max-w-4xl mx-auto my-6 space-y-6">
       
-      <div className="flex flex-col sm:flex-row justify-between items-start gap-4 bg-muted/30 p-4 rounded-xl border border-border">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-border/70">
         <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Settings2 className="w-5 h-5 text-primary" />
-            AI Provider Hub
-          </h2>
-          <p className="text-sm text-muted-foreground">Manage your AI connections.</p>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">AI Providers</h1>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-signal/15 text-signal font-semibold border border-signal/25">
+              Multi-Model Engine
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Configure local Ollama nodes and cloud inference endpoints for financial simulation.
+          </p>
         </div>
       </div>
 
-      <div className="bg-muted/10 border border-border p-4 rounded-xl space-y-4">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Settings2 className="w-4 h-4 text-muted-foreground" /> Task Routing
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Data Extraction Engine</label>
-            <p className="text-xs text-muted-foreground pb-1">Used for background tasks like formatting CSVs. Fast, cheap models recommended.</p>
-            <select
-              value={appConfig.extraction_model}
-              onChange={(e) => handleGlobalSave({ ...appConfig, extraction_model: e.target.value })}
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
-            >
-              {availableModels.length === 0 && <option disabled>No models connected</option>}
-              {availableModels.map(provider => (
-                <optgroup key={provider.provider_type} label={provider.provider_name}>
-                  {provider.models.map(model => (
-                    <option key={model.id} value={model.id}>{model.name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
+      <Card className="border border-border/80 shadow-none">
+        <CardHeader className="p-4 pb-2 border-b border-border/70">
+          <CardTitle className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground flex items-center gap-2">
+            <Settings2 className="w-3.5 h-3.5 text-foreground" /> Task Routing Configuration
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Data Extraction Engine</label>
+              <p className="text-[11px] text-muted-foreground pb-1">Used for CSV parsing and tabular normalization. Fast lightweight models recommended.</p>
+              <select
+                value={appConfig.extraction_model}
+                onChange={(e) => handleGlobalSave({ ...appConfig, extraction_model: e.target.value })}
+                className="flex h-8 w-full rounded-md border border-border/80 bg-background px-3 py-1 text-xs font-mono font-medium shadow-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+              >
+                {availableModels.length === 0 && <option disabled>No models connected</option>}
+                {availableModels.map(provider => (
+                  <optgroup key={provider.provider_type} label={provider.provider_name}>
+                    {provider.models.map(model => (
+                      <option key={model.id} value={model.id}>{model.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Analysis & Chat Engine</label>
-            <p className="text-xs text-muted-foreground pb-1">Used for conversational analysis and strategy. High-reasoning models recommended.</p>
-            <select
-              value={appConfig.analysis_model}
-              onChange={(e) => handleGlobalSave({ ...appConfig, analysis_model: e.target.value })}
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
-            >
-              {availableModels.length === 0 && <option disabled>No models connected</option>}
-              {availableModels.map(provider => (
-                <optgroup key={provider.provider_type} label={provider.provider_name}>
-                  {provider.models.map(model => (
-                    <option key={model.id} value={model.id}>{model.name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Analysis & Simulation Engine</label>
+              <p className="text-[11px] text-muted-foreground pb-1">Used for cashflow reasoning and blueprint simulations. High-capability models recommended.</p>
+              <select
+                value={appConfig.analysis_model}
+                onChange={(e) => handleGlobalSave({ ...appConfig, analysis_model: e.target.value })}
+                className="flex h-8 w-full rounded-md border border-border/80 bg-background px-3 py-1 text-xs font-mono font-medium shadow-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+              >
+                {availableModels.length === 0 && <option disabled>No models connected</option>}
+                {availableModels.map(provider => (
+                  <optgroup key={provider.provider_type} label={provider.provider_name}>
+                    {provider.models.map(model => (
+                      <option key={model.id} value={model.id}>{model.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {PROVIDERS.map((provider) => {
           const config = appConfig.providers[provider.id];
           const status = config?.status || 'disconnected';
@@ -241,18 +250,33 @@ export const ProviderSettings: React.FC = () => {
           return (
             <Card 
               key={provider.id} 
-              className={`cursor-pointer transition-all hover:border-primary/50 ${status === 'connected' ? 'border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/10' : ''}`}
+              className={cn(
+                "cursor-pointer transition-all border border-border/80 shadow-none hover:border-signal/50 bg-card",
+                status === 'connected' && 'border-signal/40 bg-signal/[0.03]'
+              )}
               onClick={() => openProviderModal(provider.id)}
             >
-              <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
+              <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-xs font-semibold flex items-center gap-2 text-foreground">
                   <provider.icon className="w-4 h-4 text-muted-foreground" />
                   {provider.name}
                 </CardTitle>
-                <div className="flex items-center">
-                  {status === 'connected' && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
-                  {status === 'error' && <AlertTriangle className="w-5 h-5 text-rose-500" />}
-                  {status === 'disconnected' && <div className="w-5 h-5 rounded-full border-2 border-muted" />}
+                <div className="flex items-center gap-1.5">
+                  {status === 'connected' && (
+                    <span className="flex items-center gap-1 text-[10px] font-mono font-semibold text-signal bg-signal/15 px-1.5 py-0.5 rounded border border-signal/25">
+                      <span className="size-1.5 rounded-full bg-signal inline-block" /> Active
+                    </span>
+                  )}
+                  {status === 'error' && (
+                    <span className="flex items-center gap-1 text-[10px] font-mono font-semibold text-destructive bg-destructive/15 px-1.5 py-0.5 rounded border border-destructive/25">
+                      <AlertTriangle className="w-3 h-3 text-destructive" /> Error
+                    </span>
+                  )}
+                  {status === 'disconnected' && (
+                    <span className="text-[10px] font-mono text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/60">
+                      Offline
+                    </span>
+                  )}
                 </div>
               </CardHeader>
             </Card>

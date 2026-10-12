@@ -121,14 +121,14 @@ export const api = {
     return res.json();
   },
   
-  chatStream: async function* (messages: {role: string, content: string}[], blueprint: any, ledger_context: string, spending_summary?: string, provider?: string, signal?: AbortSignal) {
+  chatStream: async function* (messages: {role: string, content: string}[], blueprint: any, ledger_context: string, spending_summary?: string, provider?: string, chat_mode: string = 'tactical', signal?: AbortSignal, tools?: any[]) {
     const res = await fetch(`${API_BASE}/chat`, {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",
         "X-Local-Auth-Token": getLocalAuthToken() 
       },
-      body: JSON.stringify({ messages, blueprint, ledger_context, spending_summary, provider }),
+      body: JSON.stringify({ messages, blueprint, ledger_context, spending_summary, provider, chat_mode, tools }),
       signal
     });
     

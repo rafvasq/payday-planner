@@ -88,10 +88,10 @@ export const ProjectionChart: React.FC = () => {
   }, [projectionData]);
 
   const lineColors: Record<string, string> = {
-    netWorth: '#4078f2',
-    liquidAssets: '#50a14f',
-    totalDebt: '#e45649',
-    realEstateEquity: '#986801',
+    netWorth: '#10b981',
+    liquidAssets: '#059669',
+    totalDebt: '#f43f5e',
+    realEstateEquity: '#8b5cf6',
   };
 
   const formatDateRange = (start: string, end: string, days: number) => {
@@ -104,40 +104,40 @@ export const ProjectionChart: React.FC = () => {
   };
 
   return (
-    <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-xs space-y-4">
+    <div className="bg-card border border-border/80 rounded-lg p-4 sm:p-5 shadow-none space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-brand-500" />
+          <TrendingUp className="w-4 h-4 text-signal" />
           <div>
-            <h3 className="text-base font-bold text-ink-900">
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">
               Cashflow & Balance Projections
             </h3>
-            <p className="text-xs text-ink-400">
+            <p className="text-xs text-muted-foreground">
               Simulated daily balances forward over the next {daysWindow} days
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-xs font-semibold text-ink-700 bg-ink-100 hover:bg-ink-200/60 border border-ink-200 px-3 py-1.5 rounded-lg cursor-pointer transition-colors">
+          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-muted/40 hover:bg-muted/60 border border-border/60 px-2.5 py-1 rounded-md cursor-pointer transition-colors">
             <input
               type="checkbox"
               checked={startingBalancesReflectToday}
               onChange={(e) => setStartingBalancesReflectToday(e.target.checked)}
-              className="rounded text-brand-500 focus:ring-brand-500 w-3.5 h-3.5"
+              className="rounded text-signal focus:ring-signal w-3.5 h-3.5 border-border"
             />
-            <span>Balances reflect today's cleared transactions</span>
+            <span>Balances reflect today</span>
           </label>
 
-          <div className="flex bg-ink-100 p-1 rounded-lg border border-ink-200 text-xs font-semibold">
+          <div className="flex bg-muted/40 p-0.5 rounded-md border border-border/60 text-xs font-semibold">
             {[30, 60, 90, 180].map((d) => (
               <button
                 key={d}
                 onClick={() => setDaysWindow(d)}
-                className={`px-2.5 py-1 rounded-md transition-all ${
+                className={`px-2 py-0.5 rounded transition-all text-xs font-mono ${
                   daysWindow === d
-                    ? 'bg-white text-brand-600 shadow-2xs font-bold'
-                    : 'text-ink-500 hover:text-ink-900'
+                    ? 'bg-card text-foreground shadow-sm font-bold border border-border/60'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {d}D
@@ -148,7 +148,7 @@ export const ProjectionChart: React.FC = () => {
           <select
             value={selectedMetric}
             onChange={(e) => setSelectedMetric(e.target.value)}
-            className="px-3 py-1.5 text-xs font-semibold text-ink-900 bg-white border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="px-2.5 py-1 text-xs font-medium text-foreground bg-background border border-border/80 rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="netWorth">Net Worth Timeline</option>
             <option value="liquidAssets">Liquid Assets</option>
@@ -166,21 +166,21 @@ export const ProjectionChart: React.FC = () => {
 
       {/* Smart Notification when today has scheduled transactions */}
       {todayEvents.length > 0 && (
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-2.5 text-xs text-blue-900">
-          <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+        <div className="p-3 bg-primary/5 border border-primary/15 rounded-md flex items-start gap-2.5 text-xs text-foreground">
+          <Info className="w-4 h-4 text-signal shrink-0 mt-0.5" />
           <div className="flex-1">
-            <span className="font-bold">
+            <span className="font-semibold">
               Today ({format(new Date(), 'MMM dd')}) has {todayEvents.length} scheduled transaction{todayEvents.length > 1 ? 's' : ''}:
             </span>{' '}
-            <span className="text-blue-800">
+            <span className="text-muted-foreground">
               {todayEvents.map((e) => `${e.name} ($${e.amount.toLocaleString()})`).join(', ')}.
             </span>{' '}
             {startingBalancesReflectToday ? (
-              <span className="text-blue-700 italic">
-                (Skipping duplicate same-day deduction because "Balances reflect today's cleared transactions" is enabled).
+              <span className="text-muted-foreground/80 italic text-[11px]">
+                (Skipping duplicate same-day deduction because "Balances reflect today" is enabled).
               </span>
             ) : (
-              <span className="text-amber-800 font-semibold">
+              <span className="text-warning font-medium text-[11px]">
                 (Simulating today's transaction deduction on starting balances).
               </span>
             )}
@@ -193,10 +193,10 @@ export const ProjectionChart: React.FC = () => {
         <div className="space-y-2">
           {/* Critical Overdraft Alerts */}
           {overdraftEpisodes.length > 0 && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-2">
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md space-y-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold text-rose-900">
-                  <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                <div className="flex items-center gap-2 text-xs font-bold text-destructive">
+                  <ShieldAlert className="w-4 h-4 text-destructive shrink-0" />
                   <span>
                     Critical Overdraft Risk ({overdraftEpisodes.length} Episode
                     {overdraftEpisodes.length > 1 ? 's' : ''}):
@@ -207,22 +207,22 @@ export const ProjectionChart: React.FC = () => {
                 {overdraftEpisodes.map((ep, idx) => (
                   <div
                     key={idx}
-                    className="bg-white border border-rose-200 rounded-lg p-2.5 flex flex-col justify-between shadow-2xs"
+                    className="bg-card border border-destructive/20 rounded p-2.5 flex flex-col justify-between"
                   >
-                    <div className="flex items-center justify-between font-semibold text-ink-900">
+                    <div className="flex items-center justify-between font-semibold text-foreground">
                       <span>{ep.accountName}</span>
-                      <span className="text-rose-600 font-bold">
+                      <span className="text-destructive font-mono font-bold tabular-nums">
                         Lowest: ${ep.minBalance.toLocaleString(undefined, {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </span>
                     </div>
-                    <div className="text-[11px] text-ink-500 mt-1 flex items-center justify-between">
+                    <div className="text-[11px] font-mono text-muted-foreground mt-1 flex items-center justify-between">
                       <span>
                         {formatDateRange(ep.startDate, ep.endDate, ep.durationDays)}
                       </span>
-                      <span className="text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-sm font-medium">
+                      <span className="text-destructive bg-destructive/15 px-1.5 py-0.5 rounded text-[10px] font-semibold">
                         Overdraft
                       </span>
                     </div>
@@ -234,10 +234,10 @@ export const ProjectionChart: React.FC = () => {
 
           {/* Target Floor Dips */}
           {floorDipEpisodes.length > 0 && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+            <div className="p-3 bg-warning/10 border border-warning/20 rounded-md space-y-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <div className="flex items-center gap-2 text-xs font-bold text-warning">
+                  <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
                   <span>
                     Target Floor Dip Warnings ({floorDipEpisodes.length} Episode
                     {floorDipEpisodes.length > 1 ? 's' : ''}):
@@ -245,7 +245,7 @@ export const ProjectionChart: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowEpisodes(!showEpisodes)}
-                  className="text-xs text-amber-800 hover:text-amber-950 font-medium flex items-center gap-1 underline"
+                  className="text-xs text-warning hover:underline font-medium flex items-center gap-1"
                 >
                   {showEpisodes ? (
                     <>
@@ -265,22 +265,22 @@ export const ProjectionChart: React.FC = () => {
                   {floorDipEpisodes.map((ep, idx) => (
                     <div
                       key={idx}
-                      className="bg-white border border-amber-200 rounded-lg p-2.5 flex flex-col justify-between shadow-2xs"
+                      className="bg-card border border-warning/20 rounded p-2.5 flex flex-col justify-between"
                     >
-                      <div className="flex items-center justify-between font-semibold text-ink-900">
+                      <div className="flex items-center justify-between font-semibold text-foreground">
                         <span>{ep.accountName}</span>
-                        <span className="text-amber-700 font-bold">
+                        <span className="text-warning font-mono font-bold tabular-nums">
                           Lowest: ${ep.minBalance.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
                           })}
                         </span>
                       </div>
-                      <div className="text-[11px] text-ink-500 mt-1 flex items-center justify-between">
+                      <div className="text-[11px] font-mono text-muted-foreground mt-1 flex items-center justify-between">
                         <span>
                           {formatDateRange(ep.startDate, ep.endDate, ep.durationDays)}
                         </span>
-                        <span className="text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-sm font-medium">
+                        <span className="text-warning bg-warning/15 px-1.5 py-0.5 rounded text-[10px] font-semibold">
                           Target Floor: ${ep.threshold.toLocaleString()}
                         </span>
                       </div>
@@ -292,8 +292,8 @@ export const ProjectionChart: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs text-emerald-900 font-medium">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div className="p-2.5 bg-signal/10 border border-signal/20 rounded-md flex items-center gap-2 text-xs text-signal font-medium">
+          <CheckCircle2 className="w-4 h-4 text-signal shrink-0" />
           <span>
             No overdraft or target floor alerts projected over the next {daysWindow} days.
           </span>
@@ -306,11 +306,11 @@ export const ProjectionChart: React.FC = () => {
             data={chartData}
             margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e8f0" />
-            <XAxis dataKey="date" stroke="#8b90a0" fontSize={11} tickLine={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.6} />
+            <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} />
             <YAxis
-              stroke="#8b90a0"
-              fontSize={11}
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={10}
               tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
               tickLine={false}
             />
@@ -325,20 +325,21 @@ export const ProjectionChart: React.FC = () => {
                     selectedMetric,
               ]}
               contentStyle={{
-                backgroundColor: '#ffffff',
-                borderColor: '#e5e8f0',
-                borderRadius: '8px',
+                backgroundColor: 'hsl(var(--card))',
+                borderColor: 'hsl(var(--border))',
+                borderRadius: '6px',
                 fontSize: '12px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                color: 'hsl(var(--foreground))',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               }}
             />
             <Line
               type="monotone"
               dataKey={selectedMetric}
-              stroke={lineColors[selectedMetric] || '#4078f2'}
-              strokeWidth={2.5}
+              stroke={lineColors[selectedMetric] || '#10b981'}
+              strokeWidth={2}
               dot={false}
-              activeDot={{ r: 5 }}
+              activeDot={{ r: 4, stroke: 'hsl(var(--background))', strokeWidth: 2 }}
             />
           </LineChart>
         </ResponsiveContainer>

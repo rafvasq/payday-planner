@@ -1,4 +1,5 @@
 import asyncio
+import json
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -23,11 +24,13 @@ class ChatRequest(BaseModel):
     ledger_context: str
     spending_summary: str | None = None
     provider: str | None = None
+    chat_mode: str = 'tactical'
+    tools: list[dict[str, Any]] | None = None
 
 @router.post("/chat")
 async def chat_stream(req: Request, payload: ChatRequest):
     last_msg = payload.messages[-1] if payload.messages else None
-    logger.info(f"--- AI Chat Request Started ---")
+    logger.info(f"--- AI Chat Request Started ({payload.chat_mode} mode) ---")
     if last_msg and last_msg.role == 'user':
         logger.info(f"User Input: {last_msg.content}")
     elif last_msg and last_msg.role == 'tool':
@@ -35,7 +38,22 @@ async def chat_stream(req: Request, payload: ChatRequest):
     else:
         logger.info(f"Input Role: {last_msg.role if last_msg else 'None'}")
     
-    system_prompt = """You are Payday Planner's AI financial controller and strategic advisor.
+    if payload.chat_mode == 'auditor':
+        system_prompt = """You are Payday Planner's AI Strategic Auditor.
+You are conducting a monthly budget retrospective.
+Your job is to analyze the user's uploaded actual spending (CSV aggregates) against their JSON Blueprint targets (Baseline).
+All variances, totals, and deltas have been precisely pre-calculated by the local engine and are provided to you in the LATEST LIVE SYSTEM STATE.
+DO NOT ATTEMPT TO DO ANY MATH yourself. Rely exclusively on the provided pre-calculated variances.
+
+Your objectives:
+1. Identify behavioral trends (e.g., consistent overspending in a category).
+2. Propose actionable adjustments to the JSON Blueprint (e.g., increasing a fixed cost allocation, or reducing a guilt-free buffer) using the `propose_blueprint_changes` tool.
+3. Be concise, strategic, and focused on long-term behavioral changes.
+
+Never expose internal system IDs to the user.
+Answer their questions concisely based on this data."""
+    else:
+        system_prompt = """You are Payday Planner's AI financial controller and strategic advisor.
 You operate strictly under the Household Financial Manifesto and the deterministic rules of the projection engine.
 
 === THE HOUSEHOLD FINANCIAL MANIFESTO ===
@@ -58,7 +76,13 @@ You operate strictly under the Household Financial Manifesto and the determinist
 - Natural Language Mandate: Never expose internal system IDs to the user (e.g., use the natural account and event names from the blueprint, never internal IDs like 'e8' or 'id: hub').
 
 === TOOL EXECUTION RULES ===
-- Zero-Trust Math: You are mathematically blind. You MUST run the `simulate` tool and inspect the returned diff before presenting solutions or calling `propose_blueprint_changes`. Do NOT call `simulate` and `propose_blueprint_changes` in the same turn.
+- Zero-Trust Math: You are mathematically blind. Derived in-head math is strictly forbidden.
+  * To inspect live account balances, target floors, headroom, and the 30-day outlook, you MUST call `get_snapshot`.
+  * To check upcoming cash moves, scheduled bills, paydays, or calendar events between dates, you MUST call `get_schedule`.
+  * You are strictly forbidden from running empty simulations like `simulate` with `{"changes": []}` to read state; use `get_snapshot` or `get_schedule` instead.
+  * To test hypothetical plan changes, run the `simulate` tool (which requires a label and at least one non-empty change) and inspect the returned outlook before presenting solutions or calling `propose_blueprint_changes`. Do NOT call `simulate` and `propose_blueprint_changes` in the same turn.
+  * When the user reports that a past transaction already occurred (e.g. transfer executed, bill paid, check deposited), invoke `record_actual` to present the interactive choice card. Ends your turn.
+  * When a previous `propose_blueprint_changes` tool call has `user_decision: APPLIED_TO_PLAN`, the user has approved and committed those changes into the plan. Never claim they were not applied.
 - Autonomous Interception: If a baseline projection results in an overdraft (< $0) or post-transit floor breach, do not throw your hands up. Execute a `simulate` call testing the Variance Protocol: use `skip_event` on upcoming discretionary savings sweeps/vault allocations to restore hub liquidity.
 - Strict Verbs: To stop a recurring transfer for one cycle, use `skip_event`. Do not use `set_amount` to $0.
 - Decisive Proposals & Dialogue:
@@ -79,9 +103,10 @@ Answer their questions concisely based on this data."""
             msg_dict["tool_calls"] = msg.tool_calls
             
         if i == len(payload.messages) - 1:
+            blueprint_json = json.dumps(payload.blueprint, indent=2)
             msg_dict["content"] += (
                 f"\n\n--- LATEST LIVE SYSTEM STATE ---\n"
-                f"Blueprint:\n{payload.blueprint}\n\n"
+                f"Blueprint:\n{blueprint_json}\n\n"
                 f"Ledger:\n{payload.ledger_context}\n"
             )
             if payload.spending_summary:
@@ -102,18 +127,21 @@ Answer their questions concisely based on this data."""
             return
         from app.api.tools_schema import export_tools
 
+        tools_to_use = payload.tools or export_tools
         try:
             response = await litellm.acompletion(
                 model=model_name,
                 messages=messages,
                 stream=True,
                 stream_options={"include_usage": True},
-                tools=export_tools
+                tools=tools_to_use
             )
             tool_calls_buffer = {}
             full_response_content = ""
+            last_chunk = None
             
             async for chunk in response:
+                last_chunk = chunk
                 # Zombie Thread / Disconnect Check
                 if await req.is_disconnected():
                     # Client dropped connection; abort the LiteLLM stream immediately
@@ -138,9 +166,17 @@ Answer their questions concisely based on this data."""
                     yield f"data: {json.dumps(content)}\n\n"
             
             
-            if hasattr(chunk, "usage") and chunk.usage:
+            if last_chunk is not None and hasattr(last_chunk, "usage") and last_chunk.usage:
                 import json
-                yield f"data: {json.dumps({'type': 'usage', 'prompt_tokens': chunk.usage.prompt_tokens, 'completion_tokens': chunk.usage.completion_tokens, 'total_tokens': chunk.usage.total_tokens, 'model': model_name})}\n\n"
+                usage_data = {'type': 'usage', 'prompt_tokens': last_chunk.usage.prompt_tokens, 'completion_tokens': last_chunk.usage.completion_tokens, 'total_tokens': last_chunk.usage.total_tokens, 'model': model_name}
+                try:
+                    from litellm import completion_cost
+                    cost = completion_cost(model=model_name, prompt_tokens=last_chunk.usage.prompt_tokens, completion_tokens=last_chunk.usage.completion_tokens)
+                    if cost is not None:
+                        usage_data['estimated_cost_usd'] = cost
+                except Exception as e:
+                    pass
+                yield f"data: {json.dumps(usage_data)}\n\n"
 
             if full_response_content:
                 logger.info(f"AI Output: {full_response_content}")

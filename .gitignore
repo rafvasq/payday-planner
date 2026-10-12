@@ -12,6 +12,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+payday.log
 
 # Environment & secrets
 .env
@@ -25,6 +26,7 @@ temp/
 private/
 exports/
 backups/
+*.tmp
 
 # Personal blueprints, exported JSON & financial data — strictly local
 *.blueprint.json
@@ -39,19 +41,47 @@ user_*.json
 *.export.json
 *.bak
 
-# Python-generated files
+# Testing & code coverage artifacts
+coverage/
+.coverage
+.coverage.*
+htmlcov/
+.nyc_output/
+.pytest_cache/
+.vitest/
+
+# Python-generated files & virtual environments
 __pycache__/
 *.py[oc]
 build/
 wheels/
 *.egg-info
 .venv/
+venv/
+env/
+ENV/
+backend/venv/
+.mypy_cache/
+.ruff_cache/
+
+# Agent workspaces & scratch patching scripts
+.agents/
+*.patch
+patch*.js
+patch*.cjs
+fix*.py
+modify.py
+rewrite.py
+test_regex.js
 
 # OS & IDE Tooling
 .DS_Store
 Thumbs.db
+desktop.ini
 .gemini/
 .claude/
+.cursor/
+.windsurf/
 .vscode/
 .idea/
 *.suo

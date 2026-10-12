@@ -89,18 +89,6 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: BarChart3,
         path: '/intelligence/analysis',
       },
-      {
-        id: 'chat',
-        label: 'Chat',
-        icon: MessageSquare,
-        path: '/intelligence/chat',
-      },
-      {
-        id: 'prompt-export',
-        label: 'Prompt Export',
-        icon: ClipboardCopy,
-        path: '/intelligence/prompt-export',
-      },
     ],
   },
   {
@@ -118,6 +106,12 @@ export const NAV_SECTIONS: NavSection[] = [
         label: 'Backup',
         icon: Archive,
         path: '/data/backup',
+      },
+      {
+        id: 'prompt-export',
+        label: 'Prompt Export',
+        icon: ClipboardCopy,
+        path: '/data/prompt-export',
       },
     ],
   },

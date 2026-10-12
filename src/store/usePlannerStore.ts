@@ -17,6 +17,14 @@ import { format, startOfMonth } from 'date-fns';
 const STORAGE_KEY = 'payday_blueprint';
 const EXECUTION_STORAGE_KEY = 'payday_executed_checklist';
 
+export interface BlueprintSnapshot {
+  accounts: Account[];
+  events: Event[];
+  executedEvents: Record<string, boolean>;
+  timestamp: number;
+  description?: string;
+}
+
 interface PlannerState {
   members: Member[];
   accounts: Account[];
@@ -64,6 +72,13 @@ interface PlannerState {
   importBlueprintJson: (jsonStr: string) => void;
   getBlueprintJson: (options?: { minified?: boolean; compactIds?: boolean }) => string;
   applyBlueprintChanges: (newAccounts: Account[], newEvents: Event[], executedOverrides: Record<string, boolean>) => void;
+  applyBlueprintChangesWithSnapshot: (
+    newAccounts: Account[],
+    newEvents: Event[],
+    executedOverrides: Record<string, boolean>,
+    description?: string
+  ) => BlueprintSnapshot;
+  restoreBlueprintSnapshot: (snapshot: BlueprintSnapshot) => void;
   resetToDefaults: () => void;
 }
 
@@ -256,6 +271,37 @@ export const usePlannerStore = create<PlannerState>((set, get) => {
           events: newEvents,
           executedEvents: nextExecuted,
         };
+      });
+    },
+
+    applyBlueprintChangesWithSnapshot: (newAccounts, newEvents, executedOverrides, description) => {
+      const curr = get();
+      const snapshot: BlueprintSnapshot = {
+        accounts: JSON.parse(JSON.stringify(curr.accounts)),
+        events: JSON.parse(JSON.stringify(curr.events)),
+        executedEvents: { ...curr.executedEvents },
+        timestamp: Date.now(),
+        description,
+      };
+      saveState({ members: curr.members, accounts: newAccounts, events: newEvents });
+      const nextExecuted = { ...curr.executedEvents, ...executedOverrides };
+      saveExecuted(nextExecuted);
+      set({
+        accounts: newAccounts,
+        events: newEvents,
+        executedEvents: nextExecuted,
+      });
+      return snapshot;
+    },
+
+    restoreBlueprintSnapshot: (snapshot) => {
+      const curr = get();
+      saveState({ members: curr.members, accounts: snapshot.accounts, events: snapshot.events });
+      saveExecuted(snapshot.executedEvents);
+      set({
+        accounts: snapshot.accounts,
+        events: snapshot.events,
+        executedEvents: snapshot.executedEvents,
       });
     },
 

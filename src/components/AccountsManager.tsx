@@ -92,45 +92,64 @@ export const AccountsManager: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Metric Summaries */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg shrink-0">
-              <Wallet className="w-6 h-6 text-emerald-600 dark:text-emerald-500" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Liquid Assets</p>
-              <p className="text-xl font-bold">${totalLiquid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 bg-destructive/10 rounded-lg shrink-0">
-              <CreditCard className="w-6 h-6 text-destructive" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Total Debt</p>
-              <p className="text-xl font-bold">${totalDebt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-lg shrink-0">
-              <PieChart className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">Net Worth</p>
-              <p className="text-xl font-bold">${totalNetWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-6 pb-12">
+      {/* Title strip */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-border/70">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Accounts</h1>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-signal/15 text-signal font-semibold border border-signal/25">
+              {accounts.length} Total
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Manage asset balances, debt liability structures, and household member assignments.
+          </p>
+        </div>
       </div>
+
+      {/* Metric Summaries (Contiguous Console Style) */}
+      <Card className="border border-border/80 overflow-hidden shadow-none">
+        <CardContent className="p-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border/80">
+            <div className="p-5 flex items-center gap-4">
+              <div className="p-2.5 bg-signal/15 rounded-md shrink-0 border border-signal/20">
+                <Wallet className="w-5 h-5 text-signal" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Liquid Assets</p>
+                <p className="text-xl font-bold font-mono tracking-tight tabular-nums text-foreground">
+                  ${totalLiquid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+            
+            <div className="p-5 flex items-center gap-4">
+              <div className="p-2.5 bg-destructive/15 rounded-md shrink-0 border border-destructive/20">
+                <CreditCard className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Total Debt</p>
+                <p className="text-xl font-bold font-mono tracking-tight tabular-nums text-destructive">
+                  ${totalDebt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+            
+            <div className="p-5 flex items-center gap-4">
+              <div className="p-2.5 bg-primary/10 rounded-md shrink-0 border border-primary/20">
+                <PieChart className="w-5 h-5 text-foreground" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Net Position</p>
+                <p className="text-xl font-bold font-mono tracking-tight tabular-nums text-foreground">
+                  ${totalNetWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Members Section */}
       <Card>
@@ -362,12 +381,12 @@ const AccountEditCard: React.FC<AccountEditCardProps> = ({
   };
 
   return (
-    <Card className="relative group overflow-hidden transition-colors hover:border-primary/50">
+    <Card className="relative group overflow-hidden transition-all hover:border-border border border-border/80 shadow-none bg-card">
       <Button
         variant="ghost"
         size="icon"
         onClick={onDelete}
-        className="absolute top-2 right-2 h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        className="absolute top-2.5 right-2.5 h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity z-10"
         title="Delete Account"
       >
         <Trash2 className="h-3 w-3" />
@@ -379,21 +398,23 @@ const AccountEditCard: React.FC<AccountEditCardProps> = ({
           value={localName}
           onChange={(e) => setLocalName(e.target.value)}
           onBlur={commitName}
-          className="text-sm font-bold bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none w-[90%] pb-0.5 transition-colors"
+          className="text-sm font-semibold bg-transparent border-b border-transparent hover:border-border/80 focus:border-primary focus:outline-none w-[85%] pb-0.5 transition-colors text-foreground"
         />
-        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-1">
-          {account.id}
+        <div className="mt-1">
+          <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground px-1.5 py-0.5 rounded bg-muted/50 border border-border/50">
+            {account.id}
+          </span>
         </div>
       </CardHeader>
       
       <CardContent className="p-4 pt-2 space-y-3">
         <div className="flex items-center gap-3">
           <div className="w-1/3 space-y-1">
-            <label className="block text-[10px] font-bold text-muted-foreground uppercase">Owner</label>
+            <label className="block text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Owner</label>
             <select
               value={account.owner}
               onChange={(e) => onSave({ owner: e.target.value })}
-              className="w-full px-2 py-1 h-7 text-xs font-semibold bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full px-2 py-1 h-7 text-xs font-medium bg-background border border-border/80 rounded-md focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
             >
               {ownerOptions.map((o) => (
                 <option key={o} value={o}>
@@ -403,21 +424,21 @@ const AccountEditCard: React.FC<AccountEditCardProps> = ({
             </select>
           </div>
           <div className="w-2/3 space-y-1">
-            <label className="block text-[10px] font-bold text-muted-foreground uppercase">Balance ($)</label>
+            <label className="block text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Balance ($)</label>
             <input
               type="number"
               step="any"
               value={localBalance}
               onChange={(e) => setLocalBalance(e.target.value)}
               onBlur={commitBalance}
-              className="w-full px-2 py-1 h-7 text-xs font-bold bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full px-2 py-1 h-7 text-xs font-mono font-semibold tabular-nums bg-background border border-border/80 rounded-md focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
             />
           </div>
         </div>
 
         {['chequing', 'savings', 'investment'].includes(account.type) && (
           <div className="space-y-1">
-            <label className="block text-[10px] font-bold text-muted-foreground uppercase">Target Floor ($)</label>
+            <label className="block text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Target Floor ($)</label>
             <input
               type="number"
               step="any"
@@ -425,21 +446,21 @@ const AccountEditCard: React.FC<AccountEditCardProps> = ({
               onChange={(e) => setLocalTargetFloor(e.target.value)}
               onBlur={commitTargetFloor}
               placeholder="Min balance guard"
-              className="w-full px-2 py-1 h-7 text-xs font-semibold bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full px-2 py-1 h-7 text-xs font-mono tabular-nums bg-background border border-border/80 rounded-md focus:outline-none focus:ring-1 focus:ring-ring text-foreground placeholder:font-sans placeholder:text-muted-foreground/60"
             />
           </div>
         )}
 
         {account.type === 'liability' && (
           <div className="space-y-1">
-            <label className="block text-[10px] font-bold text-muted-foreground uppercase">Market Value ($)</label>
+            <label className="block text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Market Value ($)</label>
             <input
               type="number"
               step="1000"
               value={localMarketValue}
               onChange={(e) => setLocalMarketValue(e.target.value)}
               onBlur={commitMarketValue}
-              className="w-full px-2 py-1 h-7 text-xs font-semibold bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full px-2 py-1 h-7 text-xs font-mono tabular-nums bg-background border border-border/80 rounded-md focus:outline-none focus:ring-1 focus:ring-ring text-foreground"
             />
           </div>
         )}

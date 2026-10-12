@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 export const ExportImport: React.FC = () => {
   const { accounts, events, getBlueprintJson, importBlueprintJson, resetToDefaults } =
@@ -87,14 +88,29 @@ export const ExportImport: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-4xl pb-12">
+      {/* Title strip */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-border/70">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Data Operations</h1>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-signal/15 text-signal font-semibold border border-signal/25">
+              Snapshot & CSV
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Export JSON blueprints for AI prompts or import local backups safely.
+          </p>
+        </div>
+      </div>
+
       {/* Export Section */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div className="space-y-1.5">
-            <CardTitle>Export Blueprint JSON</CardTitle>
-            <CardDescription>
-              Sparse, token-optimized JSON — paste directly into LLM context
+      <Card className="border border-border/80 shadow-none">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-5 pb-3">
+          <div className="space-y-1">
+            <CardTitle className="text-sm font-semibold">Export Blueprint JSON</CardTitle>
+            <CardDescription className="text-xs">
+              Token-optimized JSON schema — directly insertable into LLM system prompts
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -102,19 +118,19 @@ export const ExportImport: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={handleCopy}
-              className={copied ? 'text-emerald-600 border-emerald-200 bg-emerald-50' : ''}
+              className={cn("h-7 text-xs font-medium gap-1.5 shadow-none", copied && 'text-signal border-signal/30 bg-signal/10')}
             >
-              {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
-              {copied ? 'Copied!' : 'Copy JSON'}
+              {copied ? <Check className="h-3.5 w-3.5 text-signal" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? 'Copied' : 'Copy JSON'}
             </Button>
-            <Button size="sm" onClick={handleDownloadJson}>
-              <Download className="mr-2 h-4 w-4" />
-              Download JSON
+            <Button size="sm" onClick={handleDownloadJson} className="h-7 text-xs font-semibold gap-1.5 shadow-none">
+              <Download className="h-3.5 w-3.5" />
+              Download .json
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-6">
+        <CardContent className="p-5 pt-2 space-y-3.5">
+          <div className="flex items-center gap-5 text-xs text-muted-foreground">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="minified"
@@ -123,7 +139,7 @@ export const ExportImport: React.FC = () => {
               />
               <label
                 htmlFor="minified"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                className="text-xs font-medium leading-none cursor-pointer"
               >
                 Minified Single-Line
               </label>
@@ -136,7 +152,7 @@ export const ExportImport: React.FC = () => {
               />
               <label
                 htmlFor="compact"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                className="text-xs font-medium leading-none cursor-pointer"
               >
                 Compress Long UUIDs
               </label>
@@ -145,28 +161,29 @@ export const ExportImport: React.FC = () => {
           <textarea
             readOnly
             value={blueprintJson}
-            rows={minified ? 5 : 10}
-            className="w-full p-3 font-mono text-xs text-foreground bg-muted border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+            rows={minified ? 4 : 8}
+            className="w-full p-3 font-mono text-[11px] text-foreground bg-muted/30 border border-border/80 rounded-md focus:outline-none focus:ring-1 focus:ring-ring leading-relaxed"
           />
         </CardContent>
       </Card>
 
       {/* Import Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Import Blueprint JSON</CardTitle>
-          <CardDescription>
+      <Card className="border border-border/80 shadow-none">
+        <CardHeader className="p-5 pb-3">
+          <CardTitle className="text-sm font-semibold">Import Blueprint JSON</CardTitle>
+          <CardDescription className="text-xs">
             Upload a blueprint.json file or paste raw JSON to restore your accounts & events
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-5 pt-2 space-y-4">
           {importMessage && (
             <div
-              className={`p-3 rounded-md text-sm font-medium ${
+              className={cn(
+                "p-3 rounded-md text-xs font-mono font-medium border",
                 importMessage.type === 'success'
-                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800'
-                  : 'bg-destructive/10 text-destructive border border-destructive/20'
-              }`}
+                  ? 'bg-signal/15 text-signal border-signal/25'
+                  : 'bg-destructive/15 text-destructive border-destructive/25'
+              )}
             >
               {importMessage.text}
             </div>

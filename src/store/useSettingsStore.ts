@@ -88,10 +88,14 @@ export interface SettingsState {
   /* Chat Settings */
   chatModel?: string;
   chatRecentModels?: string[];
+  chatFavoriteModels?: string[];
   showTokenUsage?: boolean;
+  showContextGlance?: boolean;
   setChatModel: (model: string) => void;
   addRecentChatModel: (model: string) => void;
+  toggleFavoriteChatModel: (model: string) => void;
   setShowTokenUsage: (show: boolean) => void;
+  setShowContextGlance: (show: boolean) => void;
 }
 
 /* ── Persistence ────────────────────────────────────────────── */
@@ -119,7 +123,9 @@ function persistSettings(state: SettingsState) {
     theme: state.theme,
     chatModel: state.chatModel,
     chatRecentModels: state.chatRecentModels,
+    chatFavoriteModels: state.chatFavoriteModels,
     showTokenUsage: state.showTokenUsage,
+    showContextGlance: state.showContextGlance,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
 }
@@ -141,7 +147,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   chatModel: (persisted.chatModel as string) ?? '',
   chatRecentModels: (persisted.chatRecentModels as string[]) ?? [],
+  chatFavoriteModels: (persisted.chatFavoriteModels as string[]) ?? [],
   showTokenUsage: (persisted.showTokenUsage as boolean) ?? false,
+  showContextGlance: (persisted.showContextGlance as boolean) ?? false,
 
   setChatModel: (model: string) => {
     set((s) => {
@@ -162,11 +170,30 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     });
   },
 
+  toggleFavoriteChatModel: (model: string) => {
+    set((s) => {
+      const current = s.chatFavoriteModels || [];
+      const exists = current.includes(model);
+      const updated = exists ? current.filter(m => m !== model) : [...current, model];
+      const next = { ...s, chatFavoriteModels: updated };
+      persistSettings(next as SettingsState);
+      return { chatFavoriteModels: updated };
+    });
+  },
+
   setShowTokenUsage: (show: boolean) => {
     set((s) => {
       const next = { ...s, showTokenUsage: show };
       persistSettings(next as SettingsState);
       return { showTokenUsage: show };
+    });
+  },
+
+  setShowContextGlance: (show: boolean) => {
+    set((s) => {
+      const next = { ...s, showContextGlance: show };
+      persistSettings(next as SettingsState);
+      return { showContextGlance: show };
     });
   },
 

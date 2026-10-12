@@ -14,6 +14,9 @@ import {
 
 import { NAV_SECTIONS } from '@/app/navigation';
 import { usePlannerStore } from '@/store/usePlannerStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { useChatOptional } from '@/context/ChatContext';
+import { Bot } from 'lucide-react';
 
 /* ── Context for external triggers ──────────────────────────── */
 
@@ -68,6 +71,21 @@ function CommandPaletteDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const navigate = useNavigate();
+  const chat = useChatOptional();
+  const setShowContextGlance = useSettingsStore((s) => s.setShowContextGlance);
+
+  const runCopilot = useCallback(
+    (prompt?: string, showGlance?: boolean) => {
+      if (!chat) return;
+      if (prompt) chat.setInput(prompt);
+      if (showGlance) setShowContextGlance?.(true);
+      // On the full-page chat the panel is already visible; otherwise open the floating window.
+      if (!window.location.pathname.startsWith('/intelligence/chat')) chat.setIsOpen(true);
+      onOpenChange(false);
+    },
+    [chat, setShowContextGlance, onOpenChange]
+  );
+
   const { accounts, events } = usePlannerStore();
 
   const runAction = useCallback(
@@ -102,6 +120,36 @@ function CommandPaletteDialog({
           </CommandGroup>
         ))}
 
+        {chat && (
+          <CommandGroup heading="AI Copilot">
+            <CommandItem onSelect={() => runCopilot()}>
+              <Bot className="mr-2 h-4 w-4" />
+              <span>Open AI Copilot</span>
+              <CommandShortcut>⌘J</CommandShortcut>
+            </CommandItem>
+            <CommandItem
+              onSelect={() =>
+                runCopilot('Simulate the next 30 days and tell me if I breach my target floor.')
+              }
+            >
+              <Bot className="mr-2 h-4 w-4" />
+              <span>Simulate 30-Day Cashflow</span>
+            </CommandItem>
+            <CommandItem
+              onSelect={() =>
+                runCopilot(
+                  'Inspect my account target floors and tell me which accounts are at risk.',
+                  true
+                )
+              }
+            >
+              <Bot className="mr-2 h-4 w-4" />
+              <span>Inspect Account Floors</span>
+              <CommandShortcut>⌥G</CommandShortcut>
+            </CommandItem>
+          </CommandGroup>
+        )}
+
         <CommandSeparator />
 
         {/* Quick access: Accounts */}
@@ -111,12 +159,13 @@ function CommandPaletteDialog({
               <CommandItem
                 key={a.id}
                 onSelect={() => runAction('/planner/accounts')}
+                className="cursor-pointer"
               >
-                <span className="mr-2 text-xs text-muted-foreground uppercase">
+                <span className="mr-2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground uppercase font-semibold">
                   {a.type}
                 </span>
-                <span>{a.name}</span>
-                <CommandShortcut>
+                <span className="font-medium text-xs">{a.name}</span>
+                <CommandShortcut className="font-mono font-semibold tabular-nums text-foreground/80">
                   ${a.balance.toLocaleString()}
                 </CommandShortcut>
               </CommandItem>
@@ -131,13 +180,14 @@ function CommandPaletteDialog({
               <CommandItem
                 key={e.id}
                 onSelect={() => runAction('/planner/events')}
+                className="cursor-pointer"
               >
-                <span className="mr-2 text-xs text-muted-foreground uppercase">
+                <span className="mr-2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground uppercase font-semibold">
                   {e.event_type}
                 </span>
-                <span>{e.name}</span>
+                <span className="font-medium text-xs">{e.name}</span>
                 {e.amount && (
-                  <CommandShortcut>
+                  <CommandShortcut className="font-mono font-semibold tabular-nums text-foreground/80">
                     ${e.amount.toLocaleString()}
                   </CommandShortcut>
                 )}

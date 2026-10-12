@@ -4,93 +4,112 @@
 
 @layer base {
   :root {
-    /* Bone White / Warm light grey background */
-    --background: 60 14% 96%;
-    --foreground: 24 10% 10%;
+    /* Base Surfaces (Light - Clean Crisp Baseten Canvas) */
+    --background: 220 14% 98%;           /* #FAFAFC */
+    --foreground: 222 47% 11%;           /* #0F172A - Deep Slate Ink */
     
-    /* Pure white cards */
-    --card: 0 0% 100%;
-    --card-foreground: 24 10% 10%;
+    /* Pure white surfaces */
+    --card: 0 0% 100%;                   /* #FFFFFF Pure White Surface */
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 24 10% 10%;
+    --popover-foreground: 222 47% 11%;
     
-    /* Primary: Deep Teal / Midnight (#264653) - Tech/OS feel */
-    --primary: 197 37% 24%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary Accent (High-contrast Kong Technical Slate / Dark Ink) */
+    --primary: 222 47% 11%;              /* #0F172A */
+    --primary-foreground: 210 40% 98%;   /* #F8FAFC */
     
-    /* Secondary/Accent: Terracotta / Burnt Orange (#E76F51) - Mid-century warmth */
-    --secondary: 12 76% 61%;
-    --secondary-foreground: 0 0% 100%;
+    /* Brand Signal Accent (Baseten Signal Green) */
+    --brand-signal: 155 100% 36%;        /* #00B86B */
+    --brand-signal-foreground: 0 0% 100%;
+
+    /* Secondary Structural Elements */
+    --secondary: 220 14% 94%;            /* #EEF0F4 */
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 215 16% 47%;     /* #64748B */
+    --accent: 220 14% 94%;
+    --accent-foreground: 222 47% 11%;
     
-    /* Muted structural elements */
-    --muted: 60 14% 90%;
-    --muted-foreground: 24 10% 45%;
-    --accent: 60 14% 90%;
-    --accent-foreground: 24 10% 10%;
-    
-    --destructive: 12 76% 61%;
+    /* Semantic Signals */
+    --destructive: 349 89% 60%;          /* #F43F5E Precision Coral */
     --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;               /* #F59E0B Solar Amber */
+    --warning-foreground: 0 0% 100%;
     
-    --border: 60 14% 86%;
-    --input: 60 14% 86%;
-    --ring: 197 37% 24%;
-    --radius: 0.5rem;
+    /* Micro-borders & Control Rings */
+    --border: 220 13% 90%;               /* #E2E4E9 Hairline */
+    --input: 220 13% 90%;
+    --ring: 224 76% 48%;                 /* #1D4ED8 Kong Blue Ring */
+    --radius: 0.375rem;                  /* 6px precision micro-radius */
 
-    /* Sidebar */
-    --sidebar-background: 60 14% 93%;
-    --sidebar-foreground: 24 10% 10%;
-    --sidebar-primary: 197 37% 24%;
+    /* Sidebar Navigation (Kong Developer Portal Style) */
+    --sidebar-background: 220 16% 96%;   /* #F4F5F8 */
+    --sidebar-foreground: 222 47% 18%;
+    --sidebar-primary: 224 76% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 100%; /* Active item bg is white */
-    --sidebar-accent-foreground: 12 76% 61%; /* Terracotta active text */
-    --sidebar-border: 60 14% 86%;
-    --sidebar-ring: 197 37% 24%;
+    --sidebar-accent: 0 0% 100%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 90%;
+    --sidebar-ring: 224 76% 48%;
 
-    /* Mid-century charts: Teal, Terracotta, Mustard, Pine, Sand */
-    --chart-1: 197 37% 24%; /* Deep Teal */
-    --chart-2: 12 76% 61%;  /* Terracotta */
-    --chart-3: 43 74% 66%;  /* Mustard */
-    --chart-4: 173 58% 39%; /* Bright Teal */
-    --chart-5: 27 87% 67%;  /* Sand */
+    /* Telemetry Chart Lines */
+    --chart-1: 155 100% 36%;             /* Inflow / Cash: Signal Green */
+    --chart-2: 349 89% 60%;              /* Outflow / Debt: Coral */
+    --chart-3: 38 92% 50%;               /* Buffer / Reserves: Amber */
+    --chart-4: 217 91% 60%;              /* Net Worth: Electric Royal */
+    --chart-5: 262 83% 58%;              /* Investments: Violet */
   }
 
   .dark {
-    --background: 224 10% 10%;
-    --foreground: 220 15% 90%;
-    --card: 224 10% 13%;
-    --card-foreground: 220 15% 90%;
-    --popover: 224 10% 13%;
-    --popover-foreground: 220 15% 90%;
-    --primary: 220 85% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 224 10% 18%;
-    --secondary-foreground: 220 15% 90%;
-    --muted: 224 10% 18%;
-    --muted-foreground: 220 10% 55%;
-    --accent: 224 10% 18%;
-    --accent-foreground: 220 15% 90%;
-    --destructive: 0 62% 50%;
+    /* Base Surfaces (Dark - Modal Obsidian Carbon) */
+    --background: 228 18% 4%;            /* #090A0D Obsidian */
+    --foreground: 210 40% 98%;           /* #F8FAFC */
+    
+    --card: 224 16% 8%;                  /* #111318 Carbon */
+    --card-foreground: 210 40% 98%;
+    --popover: 224 16% 11%;              /* #181B22 Elevated Panel */
+    --popover-foreground: 210 40% 98%;
+    
+    /* Primary Accent (Crisp High-Contrast White Action) */
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 11%;
+    
+    /* Brand Signal Accent (Modal Phosphor Emerald) */
+    --brand-signal: 158 100% 45%;        /* #00E599 */
+    --brand-signal-foreground: 228 18% 4%;
+
+    --secondary: 223 14% 14%;            /* #1E2129 */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 223 14% 14%;
+    --muted-foreground: 215 20% 65%;     /* #94A3B8 */
+    --accent: 223 14% 14%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 349 89% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 224 10% 20%;
-    --input: 224 10% 20%;
-    --ring: 220 85% 60%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --border: 224 12% 17%;               /* #222630 Micro-Border */
+    --input: 224 12% 17%;
+    --ring: 158 100% 45%;
+    
+    /* Sidebar Navigation */
+    --sidebar-background: 228 20% 6%;    /* #0C0E12 */
+    --sidebar-foreground: 215 20% 75%;
+    --sidebar-primary: 158 100% 45%;
+    --sidebar-primary-foreground: 228 18% 4%;
+    --sidebar-accent: 224 16% 12%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 224 12% 15%;
+    --sidebar-ring: 158 100% 45%;
 
-    /* Sidebar */
-    --sidebar-background: 224 10% 8%;
-    --sidebar-foreground: 220 10% 70%;
-    --sidebar-primary: 220 85% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 224 10% 15%;
-    --sidebar-accent-foreground: 220 15% 90%;
-    --sidebar-border: 224 10% 18%;
-    --sidebar-ring: 220 85% 60%;
-
-    /* Charts */
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* Telemetry Chart Lines */
+    --chart-1: 158 100% 45%;
+    --chart-2: 349 89% 60%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 217 91% 60%;
+    --chart-5: 262 83% 58%;
   }
 
   * {
@@ -98,32 +117,60 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased selection:bg-brand-100 selection:text-brand-700;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
-/* Custom scrollbars */
+/* Tabular numbers for financial and telemetry data */
+.font-mono, [data-tabular="true"] {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Hairline micro-borders */
+.border-hairline {
+  border-width: 1px;
+  border-color: hsl(var(--border));
+}
+
+/* Custom scrollbars (Modal & Baseten minimalist styling) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d8dce8;
-  border-radius: 4px;
+  background: hsl(var(--border));
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #8b90a0;
+  background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Custom sidebar active state matching Kong AI Gateway */
+/* Sidebar active state matching Kong Developer Portal */
 [data-sidebar="menu-button"][data-active="true"] {
-  border-left: 3px solid hsl(var(--secondary));
+  background-color: hsl(var(--sidebar-accent));
+  color: hsl(var(--sidebar-accent-foreground));
+  border-left: 2px solid hsl(var(--brand-signal));
   border-radius: 0;
   border-top-right-radius: var(--radius);
   border-bottom-right-radius: var(--radius);
   font-weight: 600;
-  color: hsl(var(--secondary));
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* Keyboard hint tag styling */
+kbd {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-size: 0.65rem;
+  font-weight: 500;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.25rem;
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--muted) / 0.6);
+  color: hsl(var(--muted-foreground));
+  letter-spacing: -0.01em;
 }

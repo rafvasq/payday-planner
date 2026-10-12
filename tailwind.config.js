@@ -7,22 +7,34 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
       colors: {
         brand: {
-          50: '#f0f5ff',
-          100: '#e0ebff',
-          500: '#4078f2',
-          600: '#2e63d8',
-          700: '#1d4ed8',
+          50: '#f0fdf4',
+          100: '#dcfce7',
+          500: '#10b981',
+          600: '#059669',
+          700: '#047857',
+        },
+        signal: {
+          DEFAULT: "hsl(var(--brand-signal))",
+          foreground: "hsl(var(--brand-signal-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
         },
         ink: {
-          900: '#1e2025',
-          800: '#2e3138',
-          700: '#383a42',
-          500: '#6c707e',
-          400: '#8b90a0',
-          200: '#e5e8f0',
-          100: '#f5f7fb',
+          900: '#0f172a',
+          800: '#1e293b',
+          700: '#334155',
+          500: '#64748b',
+          400: '#94a3b8',
+          200: '#e2e8f0',
+          100: '#f1f5f9',
         },
         // shadcn/ui CSS variable-based colors
         background: "hsl(var(--background))",

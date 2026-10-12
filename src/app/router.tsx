@@ -34,18 +34,6 @@ function ProjectionsPage() {
 import { ProviderSettings } from '@/components/ProviderSettings';
 import { ChatPanel } from '@/components/ChatPanel';
 
-function ChatPage() {
-  return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">AI Chat</h1>
-      <p className="text-muted-foreground">
-        Talk to your personalized financial assistant, fully aware of your local blueprint.
-      </p>
-      <ChatPanel />
-    </div>
-  );
-}
-
 function PromptExportPage() {
   // Reuses ExportImport for now — the clipboard prompt workflow lives here
   return <ExportImport />;
@@ -99,12 +87,11 @@ export const router = createBrowserRouter([
 
       /* Intelligence */
       { path: 'intelligence/analysis', element: <AnalysisTab /> },
-      { path: 'intelligence/chat', element: <ChatPage /> },
-      { path: 'intelligence/prompt-export', element: <PromptExportPage /> },
 
       /* Data */
       { path: 'data/import-export', element: <ExportImport /> },
       { path: 'data/backup', element: <BackupPage /> },
+      { path: 'data/prompt-export', element: <PromptExportPage /> },
 
       /* Settings */
       { path: 'settings/providers', element: <ProvidersPage /> },

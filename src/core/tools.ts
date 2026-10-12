@@ -33,7 +33,8 @@ export const PayDebtSchema = z.object({
   card_id: z.string(),
   from_account_id: z.string(),
   amount_cents: z.number().int(),
-  date: z.string()
+  date: z.string(),
+  name: z.string().optional()
 });
 
 export const AddOneTimeSchema = z.object({
@@ -41,7 +42,8 @@ export const AddOneTimeSchema = z.object({
   from_account_id: z.string(),
   to_account_id: z.string().nullable().optional(),
   amount_cents: z.number().int(),
-  date: z.string()
+  date: z.string(),
+  name: z.string().optional()
 });
 
 export const BlueprintChangeSchema = z.union([
@@ -97,13 +99,18 @@ export function getValidatedToolSchema(accounts: Account[], events: Event[], tod
 export function applyChangesToBlueprint(
   accounts: Account[],
   events: Event[],
-  changes: BlueprintChange[]
+  changes: BlueprintChange[],
+  options: { idPrefix?: string } = {}
 ): { newAccounts: Account[], newEvents: Event[], executedEventsOverrides: Record<string, boolean> } {
   const newAccounts = JSON.parse(JSON.stringify(accounts)) as Account[];
   const newEvents = JSON.parse(JSON.stringify(events)) as Event[];
   const executedEventsOverrides: Record<string, boolean> = {};
+  // Deterministic ids keep simulations reproducible; callers that persist the result
+  // (e.g. "Apply to plan") pass a unique prefix so ids never collide across applies.
+  const prefix = options.idPrefix || 'sim';
+  const accName = (id?: string | null) => (id ? accounts.find(a => a.id === id)?.name || id : null);
 
-  for (const c of changes) {
+  changes.forEach((c, idx) => {
     if (c.type === 'skip_event') {
       executedEventsOverrides[`${c.date}_${c.event_id}`] = true;
     } else if (c.type === 'pause_event') {
@@ -119,8 +126,8 @@ export function applyChangesToBlueprint(
       if (ev) ev.amount = c.amount_cents / 100;
     } else if (c.type === 'pay_debt') {
       newEvents.push({
-        id: `temp_pay_${Math.random()}`,
-        name: `Pay Debt`,
+        id: `${prefix}_pay_${idx}`,
+        name: c.name || `Payment to ${accName(c.card_id)}`,
         event_type: 'transfer',
         amount: c.amount_cents / 100,
         from_account_id: c.from_account_id,
@@ -132,9 +139,12 @@ export function applyChangesToBlueprint(
         weekend_shift: 'none'
       });
     } else if (c.type === 'add_one_time') {
+      const defaultName = c.to_account_id
+        ? `One-time: ${accName(c.from_account_id)} â†’ ${accName(c.to_account_id)}`
+        : `One-time expense from ${accName(c.from_account_id)}`;
       newEvents.push({
-        id: `temp_add_${Math.random()}`,
-        name: `One-time`,
+        id: `${prefix}_add_${idx}`,
+        name: c.name || defaultName,
         event_type: c.to_account_id ? 'transfer' : 'outflow',
         amount: c.amount_cents / 100,
         from_account_id: c.from_account_id,
@@ -154,13 +164,13 @@ export function applyChangesToBlueprint(
       if (original) {
         newEvents.push({
             ...original,
-            id: `temp_move_${Math.random()}`,
+            id: `${prefix}_move_${idx}`,
             frequency: 'one-time',
             anchor_date: c.to_date
         });
       }
     }
-  }
+  });
 
   return { newAccounts, newEvents, executedEventsOverrides };
 }
@@ -168,6 +178,11 @@ export function applyChangesToBlueprint(
 import { projectBalances } from './projection';
 import { format, addDays } from 'date-fns';
 
+/**
+ * @deprecated Legacy watermark helper. It ignores `skipTodayEvents` and the user's executed
+ * checklist, so it can disagree with the Dashboard. Use `projectWorld` / `summarizeOutlook`
+ * from `core/ai/world` instead.
+ */
 export function getWatermarks(accounts: Account[], events: Event[], executedEventsOverrides: Record<string, boolean>, days: number = 30) {
   const today = new Date();
   const startStr = format(today, 'yyyy-MM-dd');

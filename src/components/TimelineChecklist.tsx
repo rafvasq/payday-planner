@@ -99,22 +99,22 @@ export const TimelineChecklist: React.FC = () => {
               <details
                 key={dateStr}
                 open={hasPayday}
-                className="bg-card border border-border rounded-xl overflow-hidden group shadow-sm"
+                className="bg-card border border-border/80 rounded-lg overflow-hidden group shadow-none"
               >
-                <summary className="px-4 py-3 font-semibold text-xs flex items-center justify-between cursor-pointer select-none bg-card hover:bg-muted/50 transition-colors">
+                <summary className="px-3.5 py-2.5 font-semibold text-xs flex items-center justify-between cursor-pointer select-none bg-card hover:bg-muted/40 transition-colors">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm">
+                    <span className="font-mono font-bold text-xs text-foreground">
                       {format(dateObj, 'EEE, MMM dd, yyyy')}
                     </span>
-                    {hasPayday && <span className="text-sm">💰 Payday</span>}
-                    <span className="text-xs text-muted-foreground font-normal">
+                    {hasPayday && <span className="text-[11px] font-semibold text-signal bg-signal/15 px-1.5 py-0.2 rounded border border-signal/25">💰 Payday</span>}
+                    <span className="text-[10px] font-mono text-muted-foreground font-normal">
                       ({items.length} item{items.length > 1 ? 's' : ''})
                     </span>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground group-open:rotate-180 transition-transform" />
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground group-open:rotate-180 transition-transform" />
                 </summary>
 
-                <div className="px-4 pb-3 pt-1 border-t border-border divide-y divide-border/50">
+                <div className="px-3.5 pb-2.5 pt-1 border-t border-border/70 divide-y divide-border/50">
                   {items.map((row) => {
                     const execKey = `${row.date}_${row.id}`;
                     const isExecuted = !!executedEvents[execKey];
@@ -126,16 +126,16 @@ export const TimelineChecklist: React.FC = () => {
                     const toStr =
                       accountMap[row.to_account_id || ''] || row.to_account_id || '—';
 
-                    let badgeColor = 'text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400';
+                    let badgeColor = 'text-primary bg-primary/10 border border-primary/20';
                     let directionStr = `${fromStr} → ${toStr}`;
                     let sign = '→';
 
                     if (row.type === 'inflow') {
-                      badgeColor = 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-400';
+                      badgeColor = 'text-signal bg-signal/15 border border-signal/25';
                       directionStr = `→ ${toStr}`;
                       sign = '+';
                     } else if (row.type === 'outflow') {
-                      badgeColor = 'text-rose-600 bg-rose-50 dark:bg-rose-950 dark:text-rose-400';
+                      badgeColor = 'text-destructive bg-destructive/15 border border-destructive/25';
                       directionStr = `from ${fromStr}`;
                       sign = '−';
                     }
@@ -144,38 +144,38 @@ export const TimelineChecklist: React.FC = () => {
                       <div
                         key={row.id + row.date}
                         className={cn(
-                          "py-3 flex items-center justify-between text-xs gap-3 transition-all",
+                          "py-2.5 flex items-center justify-between text-xs gap-3 transition-all",
                           isExecuted && "opacity-50"
                         )}
                       >
-                        <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="flex items-center gap-2.5 overflow-hidden">
                           <button
                             onClick={() => toggleExecutedEvent(row.date, row.id)}
-                            className="text-muted-foreground hover:text-primary transition-colors shrink-0"
+                            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
                             title={isExecuted ? 'Mark as Pending' : 'Mark as Executed/Paid'}
                           >
                             {isExecuted ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-600 fill-emerald-100 dark:text-emerald-400 dark:fill-emerald-950" />
+                              <CheckCircle2 className="w-4 h-4 text-signal fill-signal/20" />
                             ) : (
-                              <Circle className="w-4 h-4" />
+                              <Circle className="w-4 h-4 opacity-50" />
                             )}
                           </button>
 
                           <span
-                            className={cn("font-bold px-2 py-0.5 rounded text-[11px] whitespace-nowrap shrink-0", badgeColor, isExecuted && "line-through")}
+                            className={cn("font-mono font-semibold px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap shrink-0 tabular-nums", badgeColor, isExecuted && "line-through")}
                           >
                             {sign} ${row.amount.toLocaleString()}
                           </span>
 
-                          <span className={cn("font-semibold truncate", isExecuted && "line-through")}>
+                          <span className={cn("font-medium truncate text-foreground", isExecuted && "line-through")}>
                             {row.name}
                           </span>
 
-                          <span className="text-muted-foreground truncate hidden sm:inline-block">{directionStr}</span>
+                          <span className="text-muted-foreground font-mono text-[10px] truncate hidden sm:inline-block">{directionStr}</span>
                         </div>
 
                         {row.execution === 'manual' && (
-                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">
+                          <Badge variant="amber" className="text-[9px] h-4.5 px-1.5 uppercase tracking-wider shrink-0 font-mono">
                             ✋ manual
                           </Badge>
                         )}

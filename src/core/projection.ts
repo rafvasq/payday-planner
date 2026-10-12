@@ -78,6 +78,12 @@ export function groupAlertEpisodes(projectionData: DailyBalancePoint[]): AlertEp
 export interface ProjectBalancesOptions {
   skipTodayEvents?: boolean;
   executedEvents?: Record<string, boolean>;
+  /**
+   * Event ids that must be applied even on "today" when `skipTodayEvents` is set.
+   * Used for hypothetical one-off events injected by simulations (they are, by definition,
+   * not yet reflected in the starting balances).
+   */
+  forceApplyEventIds?: Set<string>;
 }
 
 export function projectBalances(
@@ -148,7 +154,7 @@ export function projectBalances(
     const isToday = dtStr === startStr;
     const todaysEvents = calendarByDate[dtStr] || [];
     for (const ev of todaysEvents) {
-      if (isToday && options.skipTodayEvents) {
+      if (isToday && options.skipTodayEvents && !options.forceApplyEventIds?.has(ev.id)) {
         continue;
       }
       const execKey = `${dtStr}_${ev.id}`;

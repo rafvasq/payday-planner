@@ -209,26 +209,27 @@ export const FlowDiagram: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4">
-          <div className="flex items-center gap-2">
-            <Network className="w-5 h-5 text-primary" />
-            <div className="space-y-1">
-              <CardTitle className="text-base">Money Flow Diagram</CardTitle>
-              <CardDescription>
-                Categorized, color-coded money flow architecture
+    <div className="space-y-6 pb-12">
+      {/* Title & Controls Card */}
+      <Card className="border border-border/80 shadow-none">
+        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-5">
+          <div className="flex items-center gap-2.5">
+            <Network className="w-5 h-5 text-signal" />
+            <div className="space-y-0.5">
+              <CardTitle className="text-base font-bold tracking-tight">Money Flow Diagram</CardTitle>
+              <CardDescription className="text-xs">
+                Categorized, color-coded money flow architecture and entity relationships.
               </CardDescription>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex bg-muted p-1 rounded-md border border-border text-xs font-semibold">
+            <div className="flex bg-muted/40 p-0.5 rounded-md border border-border/60 text-xs font-medium">
               <button
                 onClick={() => setLayoutDir('LR')}
                 className={cn(
-                  "flex items-center gap-1 px-2.5 py-1 rounded-sm transition-all",
-                  layoutDir === 'LR' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  "flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-all font-mono",
+                  layoutDir === 'LR' ? "bg-card text-foreground shadow-sm font-semibold border border-border/60" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <ArrowRight className="w-3.5 h-3.5" /> Horizontal
@@ -236,74 +237,74 @@ export const FlowDiagram: React.FC = () => {
               <button
                 onClick={() => setLayoutDir('TD')}
                 className={cn(
-                  "flex items-center gap-1 px-2.5 py-1 rounded-sm transition-all",
-                  layoutDir === 'TD' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  "flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-all font-mono",
+                  layoutDir === 'TD' ? "bg-card text-foreground shadow-sm font-semibold border border-border/60" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <ArrowDown className="w-3.5 h-3.5" /> Vertical
               </button>
             </div>
 
-            <Button variant="outline" size="sm" onClick={handleCopyCode}>
+            <Button variant="outline" size="sm" onClick={handleCopyCode} className="h-7 text-xs font-medium gap-1.5 shadow-none">
               {copied ? (
-                <Check className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                <Check className="h-3.5 w-3.5 text-signal" />
               ) : (
-                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                <Copy className="h-3.5 w-3.5" />
               )}
               {copied ? 'Copied' : 'Copy Mermaid Code'}
             </Button>
 
-            <Button size="sm" onClick={handleDownload}>
-              <Download className="mr-1.5 h-3.5 w-3.5" />
+            <Button size="sm" onClick={handleDownload} className="h-7 text-xs font-semibold gap-1.5 shadow-none">
+              <Download className="h-3.5 w-3.5" />
               Download diagram.md
             </Button>
           </div>
         </CardHeader>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">
+      <Card className="border border-border/80 shadow-none">
+        <CardHeader className="p-4 pb-2 border-b border-border/70">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <CardTitle className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
               Interactive Flow Diagram
             </CardTitle>
-            <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#137333] inline-block" /> Inflows
+            <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono font-medium text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#10b981] inline-block" /> Inflows
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#174ea6] inline-block" /> Chequing
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#2563eb] inline-block" /> Chequing
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#0d652d] inline-block" /> Savings
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#059669] inline-block" /> Savings
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#b06000] inline-block" /> Debt
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#d97706] inline-block" /> Debt
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#681da8] inline-block" /> Liabilities
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#7c3aed] inline-block" /> Liabilities
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#c5221f] inline-block" /> Outflows
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#e11d48] inline-block" /> Outflows
               </span>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto p-4 sm:p-6 bg-muted/50 rounded-lg border border-border flex justify-center min-h-[320px]">
+        <CardContent className="p-4 sm:p-6">
+          <div className="overflow-x-auto p-4 sm:p-6 bg-card rounded-md border border-border/60 flex justify-center min-h-[320px]">
             <div ref={containerRef} className="mermaid-container w-full flex justify-center [&_svg]:max-w-full" />
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">
+      <Card className="border border-border/80 shadow-none">
+        <CardHeader className="p-4 pb-2 border-b border-border/70">
+          <CardTitle className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
             Mermaid Definition Source
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <pre className="p-4 bg-zinc-950 text-zinc-50 rounded-lg text-xs font-mono overflow-x-auto">
+        <CardContent className="p-4">
+          <pre className="p-4 bg-zinc-950 dark:bg-black text-zinc-100 rounded-md text-xs font-mono overflow-x-auto border border-border/60 leading-relaxed">
             {mermaidSource}
           </pre>
         </CardContent>

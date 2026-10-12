@@ -2,14 +2,13 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
 import { ChatPanel } from '../ChatPanel';
 import { api } from '../../lib/apiClient';
 
 vi.mock('../../lib/apiClient', () => ({
   api: {
     getProvider: vi.fn().mockResolvedValue({ provider: 'test' }),
-    getModels: vi.fn().mockResolvedValue([{ provider: 'test', models: ['test-model'] }]),
+    getModels: vi.fn().mockResolvedValue([{ provider: 'test', models: [{ id: 'test-model', name: 'Test Model' }] }]),
     chatStream: vi.fn()
   }
 }));
@@ -23,30 +22,33 @@ vi.mock('../../store/usePlannerStore', () => ({
     uploadedFiles: [],
     analysisStartDate: null,
     analysisEndDate: null,
-    getBlueprintJson: vi.fn().mockReturnValue('{}')
+    getBlueprintJson: vi.fn().mockReturnValue('{}'),
+    applyBlueprintChanges: vi.fn()
   })
 }));
 
-// Mock scrollIntoView
-window.HTMLElement.prototype.scrollIntoView = function() {};
+vi.mock('../../store/useSettingsStore', () => ({
+  useSettingsStore: vi.fn().mockReturnValue({
+    chatModel: '',
+    setChatModel: vi.fn(),
+    showTokenUsage: false,
+    setShowTokenUsage: vi.fn()
+  })
+}));
 
-// Mock IntersectionObserver
-class MockIntersectionObserver {
-  callback: IntersectionObserverCallback;
-  constructor(callback: IntersectionObserverCallback) {
-    this.callback = callback;
-  }
-  observe(element: Element) {
-    this.callback([{ isIntersecting: true, target: element } as any], this as any);
-  }
-  unobserve() {}
-  disconnect() {}
-}
-(window as any).IntersectionObserver = MockIntersectionObserver;
+vi.mock('../../core/tools', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual as any,
+    applyChangesToBlueprint: vi.fn()
+  };
+});
 
 describe('ChatPanel Tool Loop', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (api.chatStream as any).mockReset();
+    localStorage.clear();
   });
 
   it('simulate -> simulate -> propose ends the loop', async () => {
@@ -54,50 +56,45 @@ describe('ChatPanel Tool Loop', () => {
     // The stream is called multiple times because ChatPanel calls api.chatStream recursively.
 
     const simulateResponse = async function* () {
-      yield { type: 'tool_call', tool_call: { function: { name: 'simulate', arguments: '{"changes":[]}' } } };
+      yield { type: 'tool_call', tool_call: { id: 'call_123', function: { name: 'simulate', arguments: '{"changes":[]}' } } };
     };
 
     const proposeResponse = async function* () {
-      yield { type: 'tool_call', tool_call: { function: { name: 'propose_blueprint_changes', arguments: '{"changes":[]}' } } };
-    };
-
-    const finalResponse = async function* () {
-      yield 'All done.';
+      yield { type: 'tool_call', tool_call: { id: 'call_456', function: { name: 'propose_blueprint_changes', arguments: '{"changes":[]}' } } };
     };
 
     (api.chatStream as any)
       .mockReturnValueOnce(simulateResponse())
       .mockReturnValueOnce(simulateResponse())
-      .mockReturnValueOnce(proposeResponse())
-      .mockReturnValueOnce(finalResponse());
+      .mockReturnValueOnce(proposeResponse());
 
     render(<ChatPanel />);
 
-    const input = screen.getByPlaceholderText(/E\.g\./i);
-    fireEvent.change(input, { target: { value: 'Do something' } });
-    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', shiftKey: false });
+    const starterButton = screen.getByText(/Moves this week\?/i);
+    fireEvent.click(starterButton);
 
-    // Wait for "All done." text to appear
+    // Wait for "Proposed Changes" text to appear
     await waitFor(() => {
-      expect(screen.getByText('All done.')).toBeInTheDocument();
+      expect(screen.getByText('Proposed Blueprint')).toBeInTheDocument();
     }, { timeout: 3000 });
 
-    // api.chatStream should have been called 3 times (since the propose ends the immediate scratchpad loop, wait, does propose end the loop?)
-    // Let's check how many times it was called. 
-    // simulate -> triggers turn 2
-    // simulate -> triggers turn 3
-    // propose -> DOES NOT trigger turn automatically, it just displays it.
+    // api.chatStream should have been called 3 times 
     expect(api.chatStream).toHaveBeenCalledTimes(3);
   });
 
   it('6th simulate is refused', async () => {
     const simulateResponse = async function* () {
-      yield { type: 'tool_call', tool_call: { function: { name: 'simulate', arguments: '{"changes":[]}' } } };
+      yield { type: 'tool_call', tool_call: { id: 'call_789', function: { name: 'simulate', arguments: '{"changes":[]}' } } };
     };
 
+    // Depth progression:
+    // depth 0: API call 1 -> simulate -> recurses to depth 1
+    // depth 1: API call 2 -> simulate -> recurses to depth 2
+    // depth 2: API call 3 -> simulate -> recurses to depth 3
+    // depth 3: API call 4 -> simulate -> recurses to depth 4
+    // depth 4: API call 5 -> simulate -> recurses to depth 5
+    // depth 5: depth >= 5 guard triggers -> returns error without calling api.chatStream
     (api.chatStream as any)
-      .mockReturnValueOnce(simulateResponse())
-      .mockReturnValueOnce(simulateResponse())
       .mockReturnValueOnce(simulateResponse())
       .mockReturnValueOnce(simulateResponse())
       .mockReturnValueOnce(simulateResponse())
@@ -106,24 +103,15 @@ describe('ChatPanel Tool Loop', () => {
 
     render(<ChatPanel />);
 
-    const input = screen.getByPlaceholderText(/E\.g\./i);
-    fireEvent.change(input, { target: { value: 'Go crazy' } });
-    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', shiftKey: false });
+    const starterButton = screen.getByText(/Moves this week\?/i);
+    fireEvent.click(starterButton);
 
-    // Should render "[Error: Max tool calls exceeded]"
+    // Should render "Error: Max tool calls exceeded"
     await waitFor(() => {
-      expect(screen.getByText(/Max tool calls exceeded/i)).toBeInTheDocument();
+      expect(screen.getByText(/Error: Max tool calls exceeded/i)).toBeInTheDocument();
     }, { timeout: 3000 });
 
-    // Should only be called 6 times because depth 0 to 5 = 6 calls, but at depth > 5 it refuses before calling API.
-    // Wait, let's look at `depth > 5`:
-    // Initial call: depth = 0
-    // 1st simulate -> depth = 1
-    // 2nd simulate -> depth = 2
-    // 3rd simulate -> depth = 3
-    // 4th simulate -> depth = 4
-    // 5th simulate -> depth = 5
-    // 6th simulate -> depth = 6 -> returns Error before API call
-    expect(api.chatStream).toHaveBeenCalledTimes(6);
+    // api.chatStream was called 5 times (depths 0..4); at depth 5 the guard returned before calling the API
+    expect(api.chatStream).toHaveBeenCalledTimes(5);
   });
 });

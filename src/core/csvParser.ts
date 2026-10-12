@@ -42,6 +42,7 @@ export function cleanMerchantName(rawName: string): string {
 }
 
 export interface ParsedTransaction {
+  id?: string;
   date: Date;
   merchant: string;
   amount: number;
@@ -146,4 +147,93 @@ export function aggregateTransactions(
   }
 
   return { markdown: md, total: absoluteTotal };
+}
+
+export interface VarianceReport {
+  categories: Record<string, {
+    actual: number;
+    baseline: number;
+    variance: number;
+    percentage: number;
+  }>;
+  totalActual: number;
+  totalBaseline: number;
+  totalVariance: number;
+  unmappedTransactions: ParsedTransaction[];
+}
+
+import stringSimilarity from 'string-similarity';
+
+export function categorizeAndCalculateVariance(
+  transactions: ParsedTransaction[],
+  events: any[],
+  startDate?: Date,
+  endDate?: Date,
+  manualOverrides?: Record<string, string>
+): VarianceReport {
+  let filtered = transactions;
+  if (startDate) {
+    filtered = filtered.filter(t => t.date >= startDate);
+  }
+  if (endDate) {
+    filtered = filtered.filter(t => t.date <= endDate);
+  }
+
+  const report: VarianceReport = {
+    categories: {},
+    totalActual: 0,
+    totalBaseline: 0,
+    totalVariance: 0,
+    unmappedTransactions: []
+  };
+
+  const eventNames = events.filter(e => e.amount < 0).map(e => e.name);
+  
+  // Set baselines
+  for (const event of events) {
+    if (event.amount >= 0) continue; // Skip income
+    report.categories[event.name] = {
+      actual: 0,
+      baseline: Math.abs(event.amount),
+      variance: 0,
+      percentage: 0
+    };
+    report.totalBaseline += Math.abs(event.amount);
+  }
+
+  // Categorize
+  for (const tx of filtered) {
+    if (tx.amount >= 0) continue; // Skip income for spending analysis
+    const amountSpent = Math.abs(tx.amount);
+    report.totalActual += amountSpent;
+
+    const manualCategory = manualOverrides && manualOverrides[tx.id || tx.merchant];
+    
+    if (manualCategory && report.categories[manualCategory]) {
+      report.categories[manualCategory].actual += amountSpent;
+    } else if (eventNames.length > 0) {
+      const match = stringSimilarity.findBestMatch(tx.merchant, eventNames);
+      if (match.bestMatch.rating > 0.3) {
+        const category = match.bestMatch.target;
+        if (report.categories[category]) {
+          report.categories[category].actual += amountSpent;
+        }
+      } else {
+        report.unmappedTransactions.push(tx);
+      }
+    } else {
+      report.unmappedTransactions.push(tx);
+    }
+  }
+
+  // Calculate variances
+  for (const cat in report.categories) {
+    const data = report.categories[cat];
+    data.variance = data.actual - data.baseline;
+    data.percentage = data.baseline > 0 ? (data.actual / data.baseline) * 100 : 0;
+  }
+  
+  report.totalVariance = report.totalActual - report.totalBaseline;
+
+  return report;
 }

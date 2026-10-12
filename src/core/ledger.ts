@@ -1,27 +1,33 @@
 import { Account, Event } from './models';
-import { projectBalances } from './projection';
+import { projectBalances, ProjectBalancesOptions } from './projection';
 import { addDays, format } from 'date-fns';
 
-export function generateLedgerContext(accounts: Account[], events: Event[], days: number = 30): string {
+export function generateLedgerContext(
+  accounts: Account[],
+  events: Event[],
+  days: number = 30,
+  options?: ProjectBalancesOptions
+): string {
     const today = new Date();
     const startStr = format(today, 'yyyy-MM-dd');
     const endDate = addDays(today, days);
     const endStr = format(endDate, 'yyyy-MM-dd');
 
-    const projection = projectBalances(accounts, events, startStr, endStr);
+    const projection = projectBalances(accounts, events, startStr, endStr, options);
     
     // The Summary Block
     const initialPoint = projection[0];
-    const initialDebt = initialPoint.totalDebt;
-    const initialCredit = initialPoint.totalCredit;
-    const initialLiquid = initialPoint.liquidAssets;
+    const initialDebt = initialPoint?.totalDebt ?? 0;
+    const initialCredit = initialPoint?.totalCredit ?? 0;
+    const initialLiquid = initialPoint?.liquidAssets ?? 0;
     
     // The Watermark
     // We track for each account: first breach, lowest date/value, recovery
     const watermarks: Record<string, {minBal: number, minDate: string, breach: string | null, recovery: string | null}> = {};
     for (const a of accounts) {
         if (['debt', 'liability'].includes(a.type)) continue;
-        watermarks[a.id] = { minBal: a.balance, minDate: startStr, breach: null, recovery: null };
+        const startBal = initialPoint?.balances?.[a.id] !== undefined ? initialPoint.balances[a.id] : a.balance;
+        watermarks[a.id] = { minBal: startBal, minDate: startStr, breach: null, recovery: null };
     }
 
     for (const pt of projection) {
@@ -52,7 +58,7 @@ export function generateLedgerContext(accounts: Account[], events: Event[], days
         if (['debt', 'liability'].includes(a.type)) continue;
         const wm = watermarks[a.id];
         const floor = a.target_floor !== null && a.target_floor !== undefined ? a.target_floor : 0;
-        const headroom = initialPoint.balances[a.id] !== undefined ? initialPoint.balances[a.id] - floor : 0;
+        const headroom = initialPoint?.balances?.[a.id] !== undefined ? initialPoint.balances[a.id] - floor : a.balance - floor;
         
         summaryText += `- [${a.id}] ${a.name}: Headroom ${headroom} | Lowest ${wm.minBal} on ${wm.minDate}`;
         if (wm.breach) {
