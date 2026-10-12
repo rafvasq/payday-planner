@@ -1,17 +1,7 @@
-import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  ChevronRight,
-  Bot,
-  Settings,
-  Users,
-  Zap,
-  Clipboard,
-} from 'lucide-react';
+import { Settings } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
 import { NAV_SECTIONS, type NavSection, type NavItem } from '@/app/navigation';
-import { useSettingsStore } from '@/store/useSettingsStore';
 
 import {
   Sidebar,
@@ -24,9 +14,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 
@@ -35,12 +22,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from '@/components/ui/collapsible';
 
 /* Section component */
 

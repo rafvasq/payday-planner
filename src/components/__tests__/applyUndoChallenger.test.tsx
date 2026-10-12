@@ -4,10 +4,10 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { SimulationCard } from '../SimulationCard';
 import { ChatPanel } from '../ChatPanel';
 import { ChatProvider, CHAT_STORAGE_KEY } from '../../context/ChatContext';
-import { usePlannerStore, BlueprintSnapshot } from '../../store/usePlannerStore';
+import { usePlannerStore } from '../../store/usePlannerStore';
 import { Account, Event } from '../../core/models';
 import { BlueprintChange } from '../../core/tools';
-import { toast, Toaster } from '../ui/sonner';
+import { toast } from '../ui/sonner';
 
 // Mock Recharts ResponsiveContainer to avoid JSDOM zero-dimension issues
 vi.mock('recharts', async (importOriginal) => {
@@ -186,7 +186,7 @@ describe('Milestone 3 Empirical Challenger: Apply to Plan & Undo Flow', () => {
         },
       };
 
-      const { container } = render(
+      render(
         <div>
           <SimulationCard
             proposalId="prop-1"
@@ -514,7 +514,7 @@ describe('Milestone 3 Empirical Challenger: Apply to Plan & Undo Flow', () => {
     });
 
     it('catches and displays error if blueprint modification fails, without corrupting state', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(console, 'error').mockImplementation(() => {});
       const toastErrorSpy = vi.spyOn(toast, 'error');
       const store = usePlannerStore.getState();
       vi.spyOn(store, 'applyBlueprintChangesWithSnapshot').mockImplementationOnce(() => {

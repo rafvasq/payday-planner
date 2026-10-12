@@ -3,15 +3,11 @@ import {
   parseFigureCents,
   formatFigureCents,
   extractFigureTokens,
-  isCurrencyToken,
   findDerivedFormula,
   classifyFigure,
   classifyMessageFigures,
-  harvestBaselineSources,
-  FigureClassification,
 } from '../provenance';
 import { FigureSource } from '../toolkit';
-import { Account, Event } from '../../models';
 
 describe('M2 Empirical Challenger: 1. Pairs Arithmetic Derivations', () => {
   const sources: FigureSource[] = [

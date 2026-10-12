@@ -8,7 +8,6 @@ import {
   describeTransaction,
   validateChanges,
   transactionsToAdjustments,
-  statusText,
   executeTool,
   ToolValidationError,
   ToolContext,

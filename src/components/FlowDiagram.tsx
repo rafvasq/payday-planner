@@ -19,14 +19,6 @@ export const FlowDiagram: React.FC = () => {
   const [layoutDir, setLayoutDir] = useState<'LR' | 'TD'>('LR');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const memberNameMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    members.forEach((m) => {
-      map[m.id] = m.name;
-    });
-    return map;
-  }, [members]);
-
   const mermaidSource = useMemo(() => {
     const activeEvents = events.filter((e) => e.active);
     const safe = (s: string) => s.replace(/[^a-zA-Z0-9_]/g, '_');

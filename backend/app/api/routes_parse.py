@@ -1,6 +1,8 @@
+import logging
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.core.llm import parse_csv_with_llm
 
+logger = logging.getLogger("payday.parse")
 router = APIRouter()
 
 def dumb_chunk_csv(raw_csv: str, chunk_size: int = 40) -> list[str]:
@@ -13,9 +15,12 @@ async def parse_csv(file: UploadFile = File(...), provider: str = Form(None)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported.")
     
-    # 1. Zero-Logic Decode (In-Memory)
+    # 1. Zero-Logic Decode (In-Memory with Latin-1 fallback for legacy bank exports)
     content = await file.read()
-    raw_csv = content.decode("utf-8")
+    try:
+        raw_csv = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raw_csv = content.decode("latin-1", errors="replace")
     
     # 2. Dumb Chunking
     chunks = dumb_chunk_csv(raw_csv)
@@ -48,15 +53,15 @@ async def parse_csv(file: UploadFile = File(...), provider: str = Form(None)):
                 
                 if fallback_model:
                     try:
-                        print(f"Connection failed. Falling back to {fallback_model}...")
+                        logger.info(f"Connection failed. Falling back to {fallback_model}...")
                         statement_chunk = parse_csv_with_llm(chunk, fallback_model)
                         all_transactions.extend(statement_chunk.transactions)
                         fallback_warning = f"Local model unreachable. Falling back to {fallback_model.split('/')[1]} for parsing."
                         continue
                     except Exception as fallback_err:
-                        print(f"Fallback failed: {fallback_err}")
+                        logger.warning(f"Fallback failed: {fallback_err}")
             
-            print(f"Failed to parse chunk: {e}")
+            logger.error(f"Failed to parse chunk: {e}")
             has_errors = True
             
     # 4. Graceful Degradation UX

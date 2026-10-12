@@ -6,13 +6,11 @@ import { RecordActualCard } from '../RecordActualCard';
 import {
   ChatProvider,
   useChat,
-  ScenarioAssumption,
-  RecordActualStatus,
 } from '../../../context/ChatContext';
 import { usePlannerStore } from '../../../store/usePlannerStore';
-import { PlannerWorld, projectWorld, ScenarioChange, toCents } from '../../../core/ai/world';
+import { PlannerWorld, projectWorld } from '../../../core/ai/world';
 import { ActualView } from '../../../core/ai/toolkit';
-import { api, logToServer } from '../../../lib/apiClient';
+import { api } from '../../../lib/apiClient';
 
 // Mock apiClient to monitor zero LLM calls
 vi.mock('../../../lib/apiClient', () => ({
@@ -94,13 +92,9 @@ describe('ScenarioTray Layering Adversarial Challenger (Milestone 3)', () => {
       assumptions,
       scenarioAssumptions,
       addAssumption,
-      toggleAssumption,
-      removeAssumption,
       chatMode,
       setChatMode,
       clearMessages,
-      applyRecordActual,
-      recordStatuses,
     } = useChat();
 
     const { accounts, events, executedEvents, startingBalancesReflectToday } = usePlannerStore();

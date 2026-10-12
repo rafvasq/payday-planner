@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   FastForward,
   Pause,
-  CalendarDays,
   ArrowRightLeft,
   CreditCard,
   PlusCircle,
@@ -23,8 +22,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
-  CardDescription,
   CardFooter
 } from '@/components/ui/card';
 import {

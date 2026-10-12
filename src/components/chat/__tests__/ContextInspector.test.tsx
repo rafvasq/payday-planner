@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ContextInspector } from '../ContextInspector';
@@ -103,7 +102,7 @@ describe('ContextInspector Component (Requirement R4)', () => {
 
     it('derives open state from ChatContext when open prop is omitted', async () => {
       const TestConsumer = () => {
-        const { isInspectorOpen, setIsInspectorOpen } = useChat();
+        const { setIsInspectorOpen } = useChat();
         return (
           <div>
             <button onClick={() => setIsInspectorOpen(true)}>Open Inspector</button>

@@ -1,6 +1,6 @@
 import os
 import litellm
-from mellea import generative
+from mellea import generative, start_session
 from pydantic import BaseModel
 from typing import List
 from .config import load_settings, get_api_key
@@ -33,24 +33,21 @@ def configure_provider(override_id: str = None, job_type: str = "analysis") -> s
     if not settings:
         raise ValueError(f"Provider '{provider_type}' is not configured.")
         
-    api_key = get_api_key(settings.provider_type)
-    
-    if settings.provider_type == "openai":
-        os.environ["OPENAI_API_KEY"] = api_key or ""
-    elif settings.provider_type == "anthropic":
-        os.environ["ANTHROPIC_API_KEY"] = api_key or ""
-    elif settings.provider_type == "gemini":
-        os.environ["GEMINI_API_KEY"] = api_key or ""
-    elif settings.provider_type == "openrouter":
-        os.environ["OPENROUTER_API_KEY"] = api_key or ""
+    if api_key:
+        if settings.provider_type == "openai":
+            os.environ["OPENAI_API_KEY"] = api_key
+        elif settings.provider_type == "anthropic":
+            os.environ["ANTHROPIC_API_KEY"] = api_key
+        elif settings.provider_type == "gemini":
+            os.environ["GEMINI_API_KEY"] = api_key
+        elif settings.provider_type == "openrouter":
+            os.environ["OPENROUTER_API_KEY"] = api_key
 
     if settings.endpoint:
         litellm.api_base = settings.endpoint
         
     prefix = "" if settings.provider_type == "ollama" and model.startswith("ollama/") else f"{settings.provider_type}/"
     return f"{prefix}{model}"
-
-from mellea import generative, start_session
 
 def parse_csv_with_llm(csv_chunk: str, override_id: str = None) -> Statement:
     """

@@ -1,12 +1,12 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { RecordActualCard, ActualChoice, RecordActualStatus } from '../RecordActualCard';
+import { RecordActualCard, ActualChoice } from '../RecordActualCard';
 import { ActualView } from '../../../core/ai/toolkit';
 import { BalanceAdjustment } from '../../../core/ai/world';
-import { ChatProvider, useChat, ScenarioAssumption } from '../../../context/ChatContext';
+import { ChatProvider, useChat } from '../../../context/ChatContext';
 import { usePlannerStore } from '../../../store/usePlannerStore';
-import { Account, Event } from '../../../core/models';
+import { Account } from '../../../core/models';
 import { toast } from '@/components/ui/sonner';
 import { api } from '../../../lib/apiClient';
 

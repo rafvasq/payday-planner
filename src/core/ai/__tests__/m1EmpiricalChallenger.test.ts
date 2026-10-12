@@ -2,15 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { format, addDays, parseISO } from 'date-fns';
 import {
   PlannerWorld,
-  ScenarioChange,
-  DEFAULT_HORIZON_DAYS,
   toCents,
-  formatCents,
   projectWorld,
   summarizeOutlook,
-  buildSchedule,
-  snapshotId,
-  worldToday,
 } from '../world';
 import {
   executeTool,

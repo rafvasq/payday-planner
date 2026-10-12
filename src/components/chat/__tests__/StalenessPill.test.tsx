@@ -1,11 +1,8 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { StalenessPill, getPlannerSnapshotId } from '../StalenessPill';
 import { usePlannerStore } from '@/store/usePlannerStore';
 import { Account, Event } from '@/core/models';
-import { snapshotId, PlannerWorld } from '@/core/ai/world';
-import { format } from 'date-fns';
 
 describe('StalenessPill Component (Requirement R4)', () => {
   const sampleAccounts: Account[] = [

@@ -3,7 +3,6 @@ import {
   Member,
   Account,
   Event,
-  Blueprint,
 } from '../core/models';
 import {
   defaultMembers,
@@ -30,7 +29,6 @@ interface PlannerState {
   accounts: Account[];
   events: Event[];
   executedEvents: Record<string, boolean>; // key: `${date}_${eventId}`
-  activeTab: string;
   quickCheckInOpen: boolean;
   startingBalancesReflectToday: boolean;
   recentSpendingSummary: string | null;
@@ -41,7 +39,6 @@ interface PlannerState {
   analysisEndDate: string;
 
   // Actions
-  setActiveTab: (tab: string) => void;
   setQuickCheckInOpen: (open: boolean) => void;
   setStartingBalancesReflectToday: (reflectToday: boolean) => void;
   setRecentSpendingSummary: (summary: string | null) => void;
@@ -135,7 +132,6 @@ export const usePlannerStore = create<PlannerState>((set, get) => {
     accounts: initial.accounts,
     events: initial.events,
     executedEvents: initialExecuted,
-    activeTab: 'Dashboard',
     quickCheckInOpen: false,
     startingBalancesReflectToday: true,
     recentSpendingSummary: null,
@@ -145,7 +141,6 @@ export const usePlannerStore = create<PlannerState>((set, get) => {
     analysisStartDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
     analysisEndDate: format(new Date(), 'yyyy-MM-dd'),
 
-    setActiveTab: (tab) => set({ activeTab: tab }),
     setQuickCheckInOpen: (open) => set({ quickCheckInOpen: open }),
     setStartingBalancesReflectToday: (reflectToday) =>
       set({ startingBalancesReflectToday: reflectToday }),

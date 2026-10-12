@@ -1,9 +1,7 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { StepTrace } from '../StepTrace';
 import { ContextInspector } from '../ContextInspector';
-import { StalenessPill } from '../StalenessPill';
 import { ChatProvider, useChat } from '@/context/ChatContext';
 import { usePlannerStore } from '@/store/usePlannerStore';
 import { toast } from '@/components/ui/sonner';

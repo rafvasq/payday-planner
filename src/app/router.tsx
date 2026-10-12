@@ -1,20 +1,20 @@
-import React from 'react';
+import { lazy } from 'react';
 import {
   createBrowserRouter,
   Navigate,
-  RouterProvider,
 } from 'react-router-dom';
 
 import { AppLayout } from '@/app/layout';
 
-/* ── Existing components (Phase 2 — direct reuse for now) ──── */
-import { Dashboard } from '@/components/Dashboard';
-import { AccountsManager } from '@/components/AccountsManager';
-import { EventsManager } from '@/components/EventsManager';
-import { TimelineChecklist } from '@/components/TimelineChecklist';
-import { FlowDiagram } from '@/components/FlowDiagram';
-import { AnalysisTab } from '@/components/AnalysisTab';
-import { ExportImport } from '@/components/ExportImport';
+/* ── Lazy-loaded components (Route-level code splitting) ───── */
+const Dashboard = lazy(() => import('@/components/Dashboard').then(m => ({ default: m.Dashboard })));
+const AccountsManager = lazy(() => import('@/components/AccountsManager').then(m => ({ default: m.AccountsManager })));
+const EventsManager = lazy(() => import('@/components/EventsManager').then(m => ({ default: m.EventsManager })));
+const TimelineChecklist = lazy(() => import('@/components/TimelineChecklist').then(m => ({ default: m.TimelineChecklist })));
+const FlowDiagram = lazy(() => import('@/components/FlowDiagram').then(m => ({ default: m.FlowDiagram })));
+const AnalysisTab = lazy(() => import('@/components/AnalysisTab').then(m => ({ default: m.AnalysisTab })));
+const ExportImport = lazy(() => import('@/components/ExportImport').then(m => ({ default: m.ExportImport })));
+const ProviderSettings = lazy(() => import('@/components/ProviderSettings').then(m => ({ default: m.ProviderSettings })));
 
 /* ── Placeholder pages for new views ───────────────────────── */
 
@@ -30,9 +30,6 @@ function ProjectionsPage() {
     </div>
   );
 }
-
-import { ProviderSettings } from '@/components/ProviderSettings';
-import { ChatPanel } from '@/components/ChatPanel';
 
 function PromptExportPage() {
   // Reuses ExportImport for now — the clipboard prompt workflow lives here

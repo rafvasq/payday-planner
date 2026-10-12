@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useState } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 
 import { usePlannerStore } from '../store/usePlannerStore';
 import { useSettingsStore } from '../store/useSettingsStore';
@@ -10,262 +10,38 @@ import {
   Cpu,
   X,
   FileText,
-  AlertTriangle,
   Trash2,
   Square,
   ArrowDown,
-  Coins,
   Maximize2,
   Minimize2,
-  RotateCcw,
-  BarChart3,
   Minus,
   Sparkles,
-  ExternalLink,
   Database,
 } from 'lucide-react';
-import { useNavigate, useInRouterContext } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ModelPopover } from './ModelPopover';
 import { SimulationCard } from './SimulationCard';
 import { RecordActualCard } from './chat/RecordActualCard';
 import { ScenarioTray } from './chat/ScenarioTray';
-import { MiniBalanceChart } from './MiniBalanceChart';
-import { ContextGlanceBar } from './ContextGlanceBar';
 import { ContextGlanceRibbon } from './chat/ContextGlanceRibbon';
 import { StepTrace } from './chat/StepTrace';
 import { ContextInspector } from './chat/ContextInspector';
 import { StalenessPill } from './chat/StalenessPill';
+import { AssistantMessageProse, AssistantMessageFooter } from './chat/AssistantMessageProse';
 import { useScrollAnchor } from '@/hooks/useScrollAnchor';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { FigureChip } from './chat/FigureChip';
-import { GroundingBadge } from './chat/GroundingBadge';
 import {
   ActualView,
   describeTransaction,
   transactionsToAdjustments,
 } from '../core/ai/toolkit';
 import { toCents, snapshotId } from '../core/ai/world';
-import {
-  classifyMessageFigures,
-  classifyFigure,
-  harvestBaselineSources,
-  isCurrencyToken,
-  FigureClassification,
-} from '../core/ai/provenance';
-import { applyChangesToBlueprint } from '../core/tools';
 import { buildCalendar } from '../core/calendar';
 import { format, addDays } from 'date-fns';
-import { toast } from '@/components/ui/sonner';
-
-const formatCurrency = (val: number) =>
-  val.toLocaleString('en-CA', { style: 'currency', currency: 'CAD' });
-
-function replaceFigureChips(
-  node: React.ReactNode,
-  figureMap: Map<string, FigureClassification>,
-  allSources: import('../core/ai/toolkit').FigureSource[],
-  userMessages: string[]
-): React.ReactNode {
-  if (typeof node === 'string') {
-    const regex = /-?\$?\d{1,3}(?:,\d{3})*(?:\.\d{2})?|-?\$\d+(?:\.\d{2})?/g;
-    const result: React.ReactNode[] = [];
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
-    while ((match = regex.exec(node)) !== null) {
-      const rawToken = match[0];
-      const startIndex = match.index;
-      const endIndex = startIndex + rawToken.length;
-
-      if (!isCurrencyToken(rawToken)) {
-        continue;
-      }
-
-      if (startIndex > lastIndex) {
-        result.push(node.slice(lastIndex, startIndex));
-      }
-
-      const classification =
-        figureMap.get(rawToken) ||
-        classifyFigure(rawToken, allSources, userMessages);
-
-      result.push(
-        <FigureChip
-          key={`fig-${startIndex}-${rawToken}`}
-          classificationData={classification}
-        />
-      );
-
-      lastIndex = endIndex;
-    }
-
-    if (lastIndex < node.length) {
-      result.push(node.slice(lastIndex));
-    }
-
-    return result.length > 0 ? result : node;
-  }
-
-  if (Array.isArray(node)) {
-    return React.Children.map(node, (child) =>
-      replaceFigureChips(child, figureMap, allSources, userMessages)
-    );
-  }
-
-  if (React.isValidElement(node)) {
-    if (node.type === 'code' || node.type === 'pre' || node.type === FigureChip) {
-      return node;
-    }
-    const props = node.props as any;
-    if (props && props.children) {
-      return React.cloneElement(node, {
-        ...props,
-        children: replaceFigureChips(props.children, figureMap, allSources, userMessages),
-      });
-    }
-  }
-
-  return node;
-}
-
-function createFigureComponents(
-  figureMap: Map<string, FigureClassification>,
-  allSources: import('../core/ai/toolkit').FigureSource[],
-  userMessages: string[]
-) {
-  const wrapTag = (tag: string) => {
-    const Component = ({ children, node, ...props }: any) => {
-      const Tag = tag as any;
-      return <Tag {...props}>{replaceFigureChips(children, figureMap, allSources, userMessages)}</Tag>;
-    };
-    Component.displayName = `FigureWrapped(${tag})`;
-    return Component;
-  };
-
-  return {
-    p: wrapTag('p'),
-    li: wrapTag('li'),
-    td: wrapTag('td'),
-    th: wrapTag('th'),
-    strong: wrapTag('strong'),
-    em: wrapTag('em'),
-    h1: wrapTag('h1'),
-    h2: wrapTag('h2'),
-    h3: wrapTag('h3'),
-    h4: wrapTag('h4'),
-    h5: wrapTag('h5'),
-    h6: wrapTag('h6'),
-    blockquote: wrapTag('blockquote'),
-    span: wrapTag('span'),
-  };
-}
-
-const AssistantMessageProse: React.FC<{
-  content: string;
-  sources?: import('../core/ai/toolkit').FigureSource[];
-  userMessages: string[];
-  accounts: import('../core/models').Account[];
-  events: import('../core/models').Event[];
-}> = ({ content, sources, userMessages, accounts, events }) => {
-  const allSources = useMemo(() => {
-    return [...harvestBaselineSources(accounts, events), ...(sources || [])];
-  }, [accounts, events, sources]);
-
-  const classificationResult = useMemo(() => {
-    return classifyMessageFigures(content, allSources, userMessages);
-  }, [content, allSources, userMessages]);
-
-  const figureMap = useMemo(() => {
-    const map = new Map<string, FigureClassification>();
-    for (const f of classificationResult.figures) {
-      map.set(f.rawText, f);
-    }
-    return map;
-  }, [classificationResult]);
-
-  const markdownComponents = useMemo(() => {
-    return createFigureComponents(figureMap, allSources, userMessages);
-  }, [figureMap, allSources, userMessages]);
-
-  return (
-    <>
-      {classificationResult.totalFigures > 0 && (
-        <span className="sr-only">{content}</span>
-      )}
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-        {content}
-      </ReactMarkdown>
-    </>
-  );
-};
-
-const AssistantMessageFooter: React.FC<{
-  content: string;
-  sources?: import('../core/ai/toolkit').FigureSource[];
-  userMessages: string[];
-  accounts: import('../core/models').Account[];
-  events: import('../core/models').Event[];
-  isLastAssistant: boolean;
-  isStreaming: boolean;
-  onRegenerate: () => void;
-}> = ({
-  content,
-  sources,
-  userMessages,
-  accounts,
-  events,
-  isLastAssistant,
-  isStreaming,
-  onRegenerate,
-}) => {
-  const allSources = useMemo(() => {
-    return [...harvestBaselineSources(accounts, events), ...(sources || [])];
-  }, [accounts, events, sources]);
-
-  const classificationResult = useMemo(() => {
-    return classifyMessageFigures(content, allSources, userMessages);
-  }, [content, allSources, userMessages]);
-
-  const hasFigures = classificationResult.totalFigures > 0;
-  const showRegen = isLastAssistant && !isStreaming;
-
-  if (!hasFigures && !showRegen) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-border/40 mt-1">
-      {hasFigures ? (
-        <GroundingBadge
-          totalFigures={classificationResult.totalFigures}
-          unverifiedCount={classificationResult.unverifiedCount}
-          figures={classificationResult.figures}
-        />
-      ) : (
-        <div />
-      )}
-      {showRegen && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRegenerate}
-          disabled={isStreaming}
-          className="h-6 text-[11px] px-2 text-muted-foreground hover:text-foreground flex items-center gap-1.5 ml-auto"
-          title="Regenerate response"
-        >
-          <RotateCcw className="w-3 h-3" />
-          <span>Regenerate</span>
-        </Button>
-      )}
-    </div>
-  );
-};
 
 export interface ChatPanelProps {
   mode?: 'page' | 'floating';
@@ -275,7 +51,6 @@ export interface ChatPanelProps {
   onToggleMaximize?: () => void;
 }
 
-
 const ChatPanelInner: React.FC<ChatPanelProps> = ({
   mode = 'page',
   onClose,
@@ -283,17 +58,12 @@ const ChatPanelInner: React.FC<ChatPanelProps> = ({
   isMaximized,
   onToggleMaximize,
 }) => {
-  const inRouter = useInRouterContext();
-  const navigate = inRouter ? useNavigate() : undefined;
-
   const {
     messages,
     setMessages,
     input,
     setInput,
     isStreaming,
-    selectedModel,
-    setSelectedModel,
     availableModels,
     handleSend,
     handleStop,
@@ -301,7 +71,6 @@ const ChatPanelInner: React.FC<ChatPanelProps> = ({
     clearMessages,
     proposalStatuses,
     setProposalStatus,
-    setIsOpen,
     recordStatuses,
     applyRecordActual,
     isInspectorOpen,
@@ -317,8 +86,6 @@ const ChatPanelInner: React.FC<ChatPanelProps> = ({
     startingBalancesReflectToday,
     uploadedFiles,
     removeUploadedFile,
-    applyBlueprintChangesWithSnapshot,
-    restoreBlueprintSnapshot,
   } = usePlannerStore();
 
   const currentSnapshotId = useMemo(() => {
@@ -333,8 +100,6 @@ const ChatPanelInner: React.FC<ChatPanelProps> = ({
   }, [accounts, events, executedEvents, startingBalancesReflectToday, assumptions]);
 
   const {
-    showTokenUsage,
-    setShowTokenUsage,
     showContextGlance,
     setShowContextGlance,
   } = useSettingsStore();

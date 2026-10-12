@@ -2,8 +2,6 @@
 import { test, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ModelPopover } from '../ModelPopover';
-import { ChatProvider } from '../../context/ChatContext';
-import { useSettingsStore } from '../../store/useSettingsStore';
 
 vi.mock('../../store/useSettingsStore', () => ({
   useSettingsStore: () => ({

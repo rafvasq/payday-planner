@@ -1,6 +1,5 @@
-import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Bot, Search, Zap } from 'lucide-react';
+import { Search, Zap } from 'lucide-react';
 
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
@@ -8,14 +7,11 @@ import { Button } from '@/components/ui/button';
 import { findNavItem, findNavSection } from '@/app/navigation';
 import { useCommandPalette } from '@/app/command-palette';
 import { usePlannerStore } from '@/store/usePlannerStore';
-import { useChatOptional } from '@/context/ChatContext';
 
 export function HeaderBar() {
   const location = useLocation();
   const { setOpen: openCommandPalette } = useCommandPalette();
   const { setQuickCheckInOpen } = usePlannerStore();
-  const chat = useChatOptional();
-  const onChatRoute = location.pathname.startsWith('/intelligence/chat');
 
   const currentItem = findNavItem(location.pathname);
   const currentSection = findNavSection(location.pathname);

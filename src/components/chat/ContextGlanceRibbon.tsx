@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Wallet, AlertTriangle, Calendar, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { Wallet, AlertTriangle, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { usePlannerStore } from '@/store/usePlannerStore';
 import { useSettingsStore } from '@/store/useSettingsStore';

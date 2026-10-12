@@ -4,8 +4,6 @@ import {
   extractFigureTokens,
   findDerivedFormula,
   classifyMessageFigures,
-  FigureClassification,
-  FigureClass,
 } from '../provenance';
 import { FigureSource } from '../toolkit';
 

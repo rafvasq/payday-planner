@@ -1,22 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import {
   Check,
-  CheckCircle2,
   Loader2,
   AlertTriangle,
   ChevronDown,
-  ChevronRight,
   Code2,
   Copy,
-  Activity,
-  Layers,
-  Calendar,
-  Wallet,
-  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { ToolExecution, FigureSource, prettyDate } from '@/core/ai/toolkit';
@@ -216,11 +209,6 @@ export const StepTrace: React.FC<StepTraceProps> = ({
   const totalSteps = normalizedSteps.length;
   const isAnyInProgress = normalizedSteps.some((s) => s.status === 'in_progress');
   const isAnyError = normalizedSteps.some((s) => s.status === 'error');
-
-  const mainSummary =
-    totalSteps === 1
-      ? normalizedSteps[0].summary
-      : `${totalSteps} steps completed: ${normalizedSteps.map((s) => s.summary).join(' · ')}`;
 
   return (
     <div

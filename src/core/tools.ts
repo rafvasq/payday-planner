@@ -57,13 +57,6 @@ export const BlueprintChangeSchema = z.union([
 
 export type BlueprintChange = z.infer<typeof BlueprintChangeSchema>;
 
-export const SimulateToolSchema = z.object({
-  changes: z.array(BlueprintChangeSchema)
-});
-
-export const ProposeToolSchema = z.object({
-  changes: z.array(BlueprintChangeSchema)
-});
 
 export function getValidatedToolSchema(accounts: Account[], events: Event[], todayStr: string) {
   const StateValidatedChange = BlueprintChangeSchema.superRefine((val, ctx) => {
@@ -175,65 +168,3 @@ export function applyChangesToBlueprint(
   return { newAccounts, newEvents, executedEventsOverrides };
 }
 
-import { projectBalances } from './projection';
-import { format, addDays } from 'date-fns';
-
-/**
- * @deprecated Legacy watermark helper. It ignores `skipTodayEvents` and the user's executed
- * checklist, so it can disagree with the Dashboard. Use `projectWorld` / `summarizeOutlook`
- * from `core/ai/world` instead.
- */
-export function getWatermarks(accounts: Account[], events: Event[], executedEventsOverrides: Record<string, boolean>, days: number = 30) {
-  const today = new Date();
-  const startStr = format(today, 'yyyy-MM-dd');
-  const endStr = format(addDays(today, days), 'yyyy-MM-dd');
-  
-  const projection = projectBalances(accounts, events, startStr, endStr, { executedEvents: executedEventsOverrides });
-  
-  const watermarks: Record<string, { minBal: number, breach: string | null }> = {};
-  for (const a of accounts) {
-    if (['debt', 'liability'].includes(a.type)) continue;
-    watermarks[a.id] = { minBal: a.balance, breach: null };
-  }
-
-  for (const pt of projection) {
-    for (const a of accounts) {
-      if (['debt', 'liability'].includes(a.type)) continue;
-      const bal = pt.balances[a.id] || 0;
-      const wm = watermarks[a.id];
-      if (bal < wm.minBal) wm.minBal = bal;
-      const floor = a.target_floor || 0;
-      if (bal < floor && !wm.breach) wm.breach = pt.date;
-    }
-  }
-  return watermarks;
-}
-
-export function generateSimulationDiff(accounts: Account[], events: Event[], changes: BlueprintChange[], days: number = 30) {
-  const baseWatermarks = getWatermarks(accounts, events, {}, days);
-  const { newAccounts, newEvents, executedEventsOverrides } = applyChangesToBlueprint(accounts, events, changes);
-  const newWatermarks = getWatermarks(newAccounts, newEvents, executedEventsOverrides, days);
-
-  const diff: any = {};
-  for (const a of accounts) {
-    if (['debt', 'liability'].includes(a.type)) continue;
-    const oldW = baseWatermarks[a.id];
-    const newW = newWatermarks[a.id];
-    
-    if (oldW.minBal !== newW.minBal || oldW.breach !== newW.breach) {
-      diff[a.id] = {
-        name: a.name,
-        lowest_balance_before: oldW.minBal,
-        lowest_balance_after: newW.minBal,
-        lowest_balance_change: newW.minBal - oldW.minBal,
-        first_breach_before: oldW.breach || "None",
-        first_breach_after: newW.breach || "None"
-      };
-    }
-  }
-
-  return {
-    affected_accounts: diff,
-    status: "Simulation succeeded."
-  };
-}

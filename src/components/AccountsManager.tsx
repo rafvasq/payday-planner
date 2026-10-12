@@ -6,8 +6,6 @@ import { Plus, Trash2, Users, Building2, Wallet, CreditCard, PieChart } from 'lu
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';

@@ -3,12 +3,9 @@ import {
   parseFigureCents,
   formatFigureCents,
   extractFigureTokens,
-  isCurrencyToken,
   findDerivedFormula,
   classifyFigure,
   classifyMessageFigures,
-  harvestBaselineSources,
-  FigureClassification,
 } from '../provenance';
 import { FigureSource } from '../toolkit';
 

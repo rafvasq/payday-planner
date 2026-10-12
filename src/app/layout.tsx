@@ -1,5 +1,5 @@
-import React from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Suspense } from 'react';
+import { Outlet } from 'react-router-dom';
 
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/nav/app-sidebar';
@@ -9,12 +9,10 @@ import { QuickCheckInModal } from '@/components/QuickCheckInModal';
 import { ChatProvider } from '@/context/ChatContext';
 import { ChatFAB } from '@/components/ChatFAB';
 import { Toaster } from '@/components/ui/sonner';
-import { cn } from '@/lib/utils';
 
 import { useChat } from '@/context/ChatContext';
 
 export function AppLayoutContent() {
-  const { pathname } = useLocation();
   const { isOpen, floatingDims } = useChat();
   const isDocked = isOpen && floatingDims.isMaximized && !floatingDims.isMobile;
 
@@ -30,7 +28,9 @@ export function AppLayoutContent() {
               <div
                 className="mx-auto w-full max-w-7xl space-y-6"
               >
-                <Outlet />
+                <Suspense fallback={<div className="p-8 text-sm text-muted-foreground animate-pulse">Loading...</div>}>
+                  <Outlet />
+                </Suspense>
               </div>
             </main>
 

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { api, AppConfig, ProviderConfig, ProviderModels } from '../lib/apiClient';
-import { Settings2, Save, Loader2, KeyRound, CheckCircle2, AlertTriangle, Link2, MonitorPlay, Cloud } from 'lucide-react';
+import { Settings2, Loader2, KeyRound, AlertTriangle, Link2 } from 'lucide-react';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';

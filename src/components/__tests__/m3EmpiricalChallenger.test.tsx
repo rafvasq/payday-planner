@@ -67,7 +67,6 @@ describe('Milestone 3 Empirical Challenger: Rich Simulation Cards & MiniBalanceC
     },
   ];
 
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
   const futureDateStr = format(addDays(new Date(), 8), 'yyyy-MM-dd');
 
   const sampleEvents: Event[] = [

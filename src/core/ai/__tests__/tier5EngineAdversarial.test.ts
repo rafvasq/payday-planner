@@ -3,12 +3,6 @@ import { format, addDays, parseISO } from 'date-fns';
 import {
   PlannerWorld,
   ScenarioChange,
-  DEFAULT_HORIZON_DAYS,
-  toCents,
-  formatCents,
-  isCashAccount,
-  worldToday,
-  applyScenario,
   projectWorld,
   summarizeOutlook,
   worstStatus,
@@ -23,15 +17,10 @@ import {
   ToolContext,
   FigureSource,
   transactionsToAdjustments,
-  describeChange,
-  describeTransaction,
-  prettyDate,
 } from '../toolkit';
 import {
   parseFigureCents,
-  formatFigureCents,
   extractFigureTokens,
-  isCurrencyToken,
   findDerivedFormula,
   classifyFigure,
   classifyMessageFigures,

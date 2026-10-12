@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ContextGlanceBar } from '../ContextGlanceBar';
@@ -26,7 +25,6 @@ vi.mock('../../lib/apiClient', () => ({
 
 describe('Milestone 4 Empirical Challenge Suite: <ContextGlanceBar>', () => {
   const today = new Date();
-  const todayStr = format(today, 'yyyy-MM-dd');
 
   beforeEach(() => {
     localStorage.clear();

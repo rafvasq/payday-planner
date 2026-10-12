@@ -17,13 +17,12 @@ import {
   Clock,
   Hash,
   ShieldCheck,
-  CheckCircle2,
   Sliders,
   Table as TableIcon,
 } from 'lucide-react';
 import { usePlannerStore } from '@/store/usePlannerStore';
 import { useChatOptional } from '@/context/ChatContext';
-import { PlannerWorld, snapshotId, formatCents, toCents, worldToday } from '@/core/ai/world';
+import { PlannerWorld, snapshotId, formatCents, toCents } from '@/core/ai/world';
 import { FigureChip } from './FigureChip';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';

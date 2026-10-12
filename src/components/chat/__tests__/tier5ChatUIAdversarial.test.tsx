@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { RecordActualCard, ActualChoice, RecordActualStatus } from '../RecordActualCard';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { RecordActualCard } from '../RecordActualCard';
 import { ScenarioTray } from '../ScenarioTray';
 import { StepTrace, StepDetail } from '../StepTrace';
 import { ContextInspector } from '../ContextInspector';
@@ -18,8 +18,7 @@ import {
 } from '@/context/ChatContext';
 import { usePlannerStore } from '@/store/usePlannerStore';
 import { Account, Event } from '@/core/models';
-import { ActualView, ToolExecution, FigureSource, prettyDate } from '@/core/ai/toolkit';
-import { ScenarioChange, snapshotId } from '@/core/ai/world';
+import { ActualView, prettyDate } from '@/core/ai/toolkit';
 import { toast } from '@/components/ui/sonner';
 
 // Mock Sonner toast for inspecting success, error, info calls

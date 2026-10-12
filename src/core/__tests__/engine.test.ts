@@ -16,7 +16,7 @@ import {
   defaultAccounts,
   defaultEvents,
 } from '../serialization';
-import { Event, Account, Member } from '../models';
+import { Event, Account } from '../models';
 
 function makeEvent(
   frequency: Event['frequency'],

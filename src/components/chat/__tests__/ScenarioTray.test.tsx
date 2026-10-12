@@ -3,9 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ScenarioTray } from '../ScenarioTray';
 import { ChatProvider, useChat, ScenarioAssumption } from '../../../context/ChatContext';
-import { usePlannerStore } from '../../../store/usePlannerStore';
-import { BalanceAdjustment } from '../../../core/ai/world';
-import { BlueprintChange } from '../../../core/tools';
 
 // Mock apiClient for ChatProvider mounting
 vi.mock('../../../lib/apiClient', () => ({
@@ -202,10 +199,7 @@ describe('ScenarioTray: Milestone 3 Active Assumptions Tray', () => {
     // Helper component to exercise context methods directly
     const ContextConsumerHarness: React.FC = () => {
       const {
-        scenarioAssumptions,
         addAssumption,
-        toggleAssumption,
-        removeAssumption,
         assumptions,
       } = useChat();
 

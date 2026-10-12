@@ -391,7 +391,6 @@ describe('projectWorld & Projection Consistency', () => {
 
 describe('summarizeOutlook', () => {
   const accountChq = createAccount({ id: 'chq_1', name: 'Chequing', balance: 1000, target_floor: 400 });
-  const accountSav = createAccount({ id: 'sav_1', name: 'Savings', balance: 5000, target_floor: 2000 });
   const accountDebt = createAccount({ id: 'debt_1', name: 'Credit Card', type: 'debt', balance: 300 });
 
   it('skips non-cash accounts (debts/liabilities)', () => {

@@ -6,7 +6,6 @@ import {
   CalendarDays,
   LineChart,
   BarChart3,
-  MessageSquare,
   ClipboardCopy,
   ArrowLeftRight,
   Archive,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, RotateCcw } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePlannerStore } from '@/store/usePlannerStore';
 import { snapshotId, PlannerWorld } from '@/core/ai/world';

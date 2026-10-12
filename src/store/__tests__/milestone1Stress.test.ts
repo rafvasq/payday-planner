@@ -8,7 +8,6 @@ describe('Milestone 1 Stress & Oracle Challenge Suite', () => {
     localStorage.clear();
     const planner = usePlannerStore.getState();
     planner.resetToDefaults();
-    const settings = useSettingsStore.getState();
     useSettingsStore.setState({
       chatModel: '',
       chatRecentModels: [],
@@ -20,7 +19,6 @@ describe('Milestone 1 Stress & Oracle Challenge Suite', () => {
 
   describe('usePlannerStore — Rapid Sequential Snapshots & Rollbacks', () => {
     it('handles 100 rapid sequential snapshot creations and rollbacks without corruption', () => {
-      const store = usePlannerStore.getState();
       const snapshots: BlueprintSnapshot[] = [];
       const totalSteps = 100;
 

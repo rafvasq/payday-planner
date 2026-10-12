@@ -2,7 +2,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.core.config import load_settings, save_settings, ProviderConfig, AppConfig, set_api_key
 from typing import Dict
+import logging
 
+logger = logging.getLogger("payday.providers")
 router = APIRouter()
 
 class ProviderSetupRequest(BaseModel):
@@ -83,7 +85,7 @@ async def get_models() -> list[ProviderModels]:
                 models = [AvailableModel(id=f"openai/{m}", name=m) for m in chat_models[:15]]
                 return ProviderModels(provider_type="openai", provider_name="OpenAI", models=models)
         except Exception as e:
-            print(f"OpenAI discovery failed: {e}")
+            logger.warning(f"OpenAI discovery failed: {e}")
             return ProviderModels(provider_type="openai", provider_name="OpenAI", models=[
                 AvailableModel(id="openai/gpt-4o", name="GPT-4o")
             ])
@@ -121,7 +123,7 @@ async def get_models() -> list[ProviderModels]:
                         models.append(AvailableModel(id=f"gemini/{raw_name}", name=m.get("displayName", raw_name)))
                 return ProviderModels(provider_type="gemini", provider_name="Google Gemini", models=models)
         except Exception as e:
-            print(f"Gemini discovery failed: {e}")
+            logger.warning(f"Gemini discovery failed: {e}")
             return ProviderModels(provider_type="gemini", provider_name="Google Gemini", models=[
                 AvailableModel(id="gemini/gemini-2.5-flash", name="Gemini 2.5 Flash")
             ])
@@ -140,7 +142,7 @@ async def get_models() -> list[ProviderModels]:
                 if models:
                     return ProviderModels(provider_type="ollama", provider_name="Local (Ollama)", models=models)
         except Exception as e:
-            print(f"Ollama discovery failed: {e}")
+            logger.warning(f"Ollama discovery failed: {e}")
         return None
 
     async def fetch_openrouter():
@@ -164,7 +166,7 @@ async def get_models() -> list[ProviderModels]:
                 models = [AvailableModel(id=f"openrouter/{m['id']}", name=m.get('name', m['id'])) for m in data.get("data", [])]
                 return ProviderModels(provider_type="openrouter", provider_name="OpenRouter", models=models)
         except Exception as e:
-            print(f"OpenRouter discovery failed: {e}")
+            logger.warning(f"OpenRouter discovery failed: {e}")
             return ProviderModels(provider_type="openrouter", provider_name="OpenRouter", models=[
                 AvailableModel(id="openrouter/openai/gpt-4o", name="GPT-4o via OpenRouter")
             ])
@@ -243,5 +245,4 @@ async def test_provider(payload: ProviderSetupRequest):
             litellm.completion(**kwargs)
             return {"status": "success"}
     except Exception as e:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail=str(e))

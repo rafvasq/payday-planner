@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useMemo } from 'react';
-import { api, AppConfig, ProviderModels, logToServer } from '../lib/apiClient';
+import { api, AppConfig, ProviderModels } from '../lib/apiClient';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { aggregateTransactions, categorizeAndCalculateVariance } from '../core/csvParser';
 import { generateLedgerContext } from '../core/ledger';
-import { getKnownCents, findUnmatchedFigures } from '../core/verification';
 import {
   executeTool,
   TOOL_DEFINITIONS,
@@ -15,7 +14,7 @@ import {
   ActualView,
   transactionsToAdjustments,
 } from '../core/ai/toolkit';
-import { PlannerWorld, projectWorld, ScenarioChange, toCents, snapshotId } from '../core/ai/world';
+import { PlannerWorld, ScenarioChange, toCents, snapshotId } from '../core/ai/world';
 import { format } from 'date-fns';
 import { useFloatingDimensions } from '../hooks/useFloatingDimensions';
 import { toast } from '@/components/ui/sonner';
@@ -633,17 +632,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (chunk.tool_call) {
               toolCalls.push(chunk.tool_call);
             }
-          }
-        }
-
-        if (assistantContent) {
-          const currentExempt = currentMessages
-            .filter((m) => m.role === 'user' || m.role === 'tool')
-            .map((m) => m.content);
-          const currentKnown = getKnownCents(currentAccounts, currentEvents, currentExempt, 30);
-          const unmatched = findUnmatchedFigures(assistantContent, currentKnown);
-          if (unmatched.length > 0) {
-            logToServer('warn', `not found in engine output: ${unmatched.join(', ')}`);
           }
         }
 

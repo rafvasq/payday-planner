@@ -1,21 +1,15 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { usePlannerStore } from '../store/usePlannerStore';
-import { aggregateTransactions, autoDetectProfile, categorizeAndCalculateVariance } from '../core/csvParser';
+import { autoDetectProfile, categorizeAndCalculateVariance } from '../core/csvParser';
 import Papa from 'papaparse';
-import { api, AppConfig, ProviderModels } from '../lib/apiClient';
-import { generateLedgerContext } from '../core/ledger';
+import { api, ProviderModels } from '../lib/apiClient';
 import { format, startOfMonth } from 'date-fns';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { 
   UploadCloud, 
   Loader2,
   Calendar,
-  Copy,
   Check,
-  Info,
   AlertCircle,
-  Cpu,
   Bot,
   FileText,
   X
@@ -29,18 +23,14 @@ import { ModelPopover } from './ModelPopover';
 
 export const AnalysisTab: React.FC = () => {
   const { 
-    getBlueprintJson,
-    accounts,
     events,
     setRecentSpendingSummary,
     parsedTransactions,
     setParsedTransactions,
     analysisLogs,
     setAnalysisLogs,
-    setActiveTab,
     uploadedFiles,
     setUploadedFiles,
-    removeUploadedFile,
     analysisStartDate,
     setAnalysisStartDate,
     analysisEndDate,
@@ -50,7 +40,6 @@ export const AnalysisTab: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [copied, setCopied] = useState(false);
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [queuedFiles, setQueuedFiles] = useState<File[]>([]);
   const [unmappedOverrides, setUnmappedOverrides] = useState<Record<string, string>>({});
@@ -209,27 +198,6 @@ export const AnalysisTab: React.FC = () => {
       setRecentSpendingSummary(null);
     }
   }, [varianceReport, setRecentSpendingSummary]);
-
-  const handleCopyPrompt = async () => {
-    try {
-      const jsonStr = getBlueprintJson({ minified: true, compactIds: true });
-      const prompt = `Act as an expert financial advisor. Here is my current financial blueprint (planned cashflow) and a summary of my actual spending from ${analysisStartDate || 'Start'} to ${analysisEndDate || 'End'}.
-
-Please analyze the aggregated spending. Compare my actual spending against the allocations in my blueprint (e.g., 'Shared Bills', 'Personal Bills'). Are my blueprint allocations accurate, or do I need to calibrate them?
-
---- ACTUAL SPENDING VARIANCE ---
-${JSON.stringify(varianceReport, null, 2)}
-
---- PLANNED BLUEPRINT ---
-${jsonStr}`;
-
-      await navigator.clipboard.writeText(prompt);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch (err) {
-      console.error('Failed to copy', err);
-    }
-  };
 
   const clearData = () => {
     setParsedTransactions([]);

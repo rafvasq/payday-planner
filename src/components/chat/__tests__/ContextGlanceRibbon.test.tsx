@@ -1,10 +1,18 @@
-import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ContextGlanceRibbon } from '../ContextGlanceRibbon';
 import { ChatProvider } from '@/context/ChatContext';
 import { usePlannerStore } from '@/store/usePlannerStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
+
+vi.mock('@/lib/apiClient', () => ({
+  api: {
+    getProvider: vi.fn().mockResolvedValue({ extraction_model: 'dummy', analysis_model: 'dummy', providers: {} }),
+    getModels: vi.fn().mockResolvedValue([]),
+    chatStream: vi.fn(),
+  },
+  logToServer: vi.fn(),
+}));
 
 const renderRibbon = () =>
   render(

@@ -1,4 +1,3 @@
-import asyncio
 import json
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
@@ -7,6 +6,7 @@ from typing import Any
 import logging
 import litellm
 from app.core.llm import configure_provider
+from app.api.tools_schema import export_tools
 
 logger = logging.getLogger("payday.chat")
 router = APIRouter()
@@ -125,8 +125,6 @@ Answer their questions concisely based on this data."""
                 yield f"data: [ERROR: {msg}]\n\n"
             yield "data: [DONE]\n\n"
             return
-        from app.api.tools_schema import export_tools
-
         tools_to_use = payload.tools or export_tools
         try:
             response = await litellm.acompletion(
@@ -162,12 +160,10 @@ Answer their questions concisely based on this data."""
                 content = getattr(delta, "content", None)
                 if content:
                     full_response_content += content
-                    import json
                     yield f"data: {json.dumps(content)}\n\n"
             
             
             if last_chunk is not None and hasattr(last_chunk, "usage") and last_chunk.usage:
-                import json
                 usage_data = {'type': 'usage', 'prompt_tokens': last_chunk.usage.prompt_tokens, 'completion_tokens': last_chunk.usage.completion_tokens, 'total_tokens': last_chunk.usage.total_tokens, 'model': model_name}
                 try:
                     from litellm import completion_cost
@@ -182,7 +178,6 @@ Answer their questions concisely based on this data."""
                 logger.info(f"AI Output: {full_response_content}")
             
             if tool_calls_buffer:
-                import json
                 for tc in tool_calls_buffer.values():
                     logger.info(f"AI Tool Call: {tc['function']['name']} args: {tc['function']['arguments']}")
                     yield f"data: {json.dumps({'type': 'tool_call', 'tool_call': tc})}\n\n"
